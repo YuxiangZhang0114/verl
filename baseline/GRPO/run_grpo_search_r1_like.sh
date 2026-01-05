@@ -25,14 +25,13 @@ set -x
 
 # make sure your current working directory is the root of the project
 ulimit -n 65535
-
+WANDB_API_KEY="b39e3b21e60be7ba75d3a666603cbf281b0c442c" 
 PROJECT_DIR="$(pwd)"
 CONFIG_PATH="$PROJECT_DIR/examples/sglang_multiturn/config"
 
 # Data paths
 TRAIN_DATA="/root/yuxiang/verl/data/hotpotqa_hard_train/train.parquet"
-VAL_DATA="${VAL_DATA:-$TRAIN_DATA}"  # Use train data as val if not specified
-
+VAL_DATA="/root/yuxiang/verl/data/hotpotqa_hard_train/validation.parquet"
 # Tool config path
 TOOL_CONFIG="$CONFIG_PATH/tool_config/search_tool_config.yaml"
 
@@ -40,7 +39,7 @@ python3 -m verl.trainer.main_ppo \
     --config-path="$CONFIG_PATH" \
     --config-name='search_multiturn_grpo' \
     algorithm.adv_estimator=grpo \
-    data.train_batch_size=256 \
+    data.train_batch_size=128 \
     data.val_batch_size=128 \
     data.max_prompt_length=4096 \
     data.max_response_length=20480 \
