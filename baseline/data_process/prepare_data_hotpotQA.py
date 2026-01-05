@@ -101,7 +101,7 @@ def main():
     processed_files = []
 
     # Only process train split
-    split = "validation"
+    split = "train"
     logger.info(f"Processing {split} split...")
 
     try:
@@ -112,7 +112,7 @@ def main():
         logger.info(f"Loaded {len(dataset)} rows from {split} split")
 
         # Convert to pandas DataFrame for easier processing
-        df_raw = dataset.to_pandas().sample(n=200, random_state=42)
+        df_raw = dataset.to_pandas().sample(n=5000, random_state=42)
         
         # Filter only level == "hard" rows
         if "level" in df_raw.columns:
