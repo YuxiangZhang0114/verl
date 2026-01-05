@@ -27,16 +27,21 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # Configuration constants
-DEFAULT_SYSTEM_CONTENT = "You are a helpful and harmless assistant."
+DEFAULT_SYSTEM_CONTENT = (
+    "You are a deep research assistant. Your core function is to conduct thorough, multi-source"
+    "investigations into any topic. You must handle both broad, open-domain inquiries and queries"
+    "within specialized academic fields. For every request, synthesize information from credible,"
+    "diverse sources to deliver a comprehensive, accurate, and objective response. When you have"
+    "gathered sufficient information and are ready to provide the definitive response, you must enclose"
+    "the entire final answer within <answer></answer> tags."
+)
 DEFAULT_USER_CONTENT_PREFIX = (
-    "Answer the given question. You must conduct reasoning inside <think> and </think> "
-    "first every time you get new information. After reasoning, if you find you lack "
-    "some knowledge, you can call a search engine by <tool_call> query </tool_call> "
-    "and it will return the top searched results between <tool_response> and "
-    "</tool_response>. You can search as many times as your want. If you find no "
-    "further external knowledge needed, you can directly provide the answer inside "
-    "<answer> and </answer>, without detailed illustrations. For example, "
-    "<answer> Beijing </answer>. Question: "
+    "You are a deep research assistant. Your core function is to conduct thorough, multi-source"
+    "investigations into any topic. You must handle both broad, open-domain inquiries and queries"
+    "within specialized academic fields. For every request, synthesize information from credible,"
+    "diverse sources to deliver a comprehensive, accurate, and objective response. When you have"
+    "gathered sufficient information and are ready to provide the definitive response, you must enclose"
+    "the entire final answer within <answer></answer> tags."
 )
 
 
