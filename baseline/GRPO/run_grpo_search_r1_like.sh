@@ -48,7 +48,6 @@ python3 -m verl.trainer.main_ppo \
     data.filter_overlong_prompts=True \
     data.truncation='error' \
     data.return_raw_chat=True \
-    actor_rollout_ref.rollout.multi_turn.max_assistant_turns=15 \
     actor_rollout_ref.rollout.multi_turn.max_tool_response_length=8192 \
     actor_rollout_ref.model.path=Qwen/Qwen2.5-7B-Instruct \
     actor_rollout_ref.actor.optim.lr=1e-6 \
@@ -75,13 +74,14 @@ python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.rollout.gpu_memory_utilization=0.6 \
     actor_rollout_ref.rollout.n=5 \
     actor_rollout_ref.rollout.multi_turn.enable=True \
-    actor_rollout_ref.rollout.multi_turn.max_assistant_turns=2 \
-    actor_rollout_ref.rollout.multi_turn.format=qwen \
+    actor_rollout_ref.rollout.multi_turn.max_assistant_turns=15 \
+    actor_rollout_ref.rollout.multi_turn.format=hermes \
     actor_rollout_ref.rollout.agent.default_agent_loop=tool_agent \
     actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu=4 \
     actor_rollout_ref.ref.log_prob_use_dynamic_bsz=True \
     actor_rollout_ref.ref.log_prob_max_token_len_per_gpu=32768 \
     actor_rollout_ref.ref.fsdp_config.param_offload=True \
+    
     algorithm.use_kl_in_reward=False \
     trainer.critic_warmup=0 \
     trainer.val_before_train=False \
@@ -91,7 +91,7 @@ python3 -m verl.trainer.main_ppo \
     trainer.n_gpus_per_node=8 \
     trainer.nnodes=1 \
     trainer.save_freq=100 \
-    trainer.test_freq=-1 \
+    trainer.test_freq=10 \
     data.train_files="$TRAIN_DATA" \
     data.val_files="$VAL_DATA" \
     actor_rollout_ref.rollout.multi_turn.tool_config_path="$TOOL_CONFIG" \
