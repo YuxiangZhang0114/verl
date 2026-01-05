@@ -106,8 +106,8 @@ def main():
     try:
         # Load dataset from HuggingFace using datasets library
         # This automatically handles sharded parquet files
-        logger.info(f"Loading {split} split from {args.hf_repo_id}")
-        dataset = load_dataset(args.hf_repo_id, split=split)
+        logger.info(f"Loading {split} split from {args.hf_repo_id} with config '{args.config}'")
+        dataset = load_dataset(args.hf_repo_id, name=args.config, split=split)
         logger.info(f"Loaded {len(dataset)} rows from {split} split")
 
         # Convert to pandas DataFrame for easier processing
@@ -155,6 +155,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Download HotpotQA-Hard from HuggingFace, process, and save to Parquet.")
     parser.add_argument(
         "--hf_repo_id", default="hotpotqa/hotpot_qa", help="HuggingFace dataset repository ID."
+    )
+    parser.add_argument(
+        "--config",
+        default="distractor",
+        choices=["distractor", "fullwiki"],
+        help="Dataset configuration name. Available: 'distractor' or 'fullwiki'. Default: 'distractor'.",
     )
     parser.add_argument(
         "--local_dir",
