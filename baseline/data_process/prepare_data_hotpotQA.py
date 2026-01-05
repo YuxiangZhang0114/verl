@@ -16,11 +16,9 @@
 import argparse
 import logging
 import os
-import tempfile
 
 import pandas as pd
-from huggingface_hub import hf_hub_download
-from huggingface_hub.utils import EntryNotFoundError
+from datasets import load_dataset
 
 from verl.utils.hdfs_io import copy, makedirs
 
@@ -101,50 +99,41 @@ def main():
 
     processed_files = []
 
-    # Download and process files using temporary directory
-    with tempfile.TemporaryDirectory() as tmp_download_dir:
-        # Only process train split
-        split = "train"
-        parquet_filename = f"{split}.parquet"
-        logger.info(f"Processing {split} split...")
+    # Only process train split
+    split = "train"
+    logger.info(f"Processing {split} split...")
 
-        try:
-            # Download Parquet file from HuggingFace
-            logger.info(f"Downloading {parquet_filename} from {args.hf_repo_id}")
-            local_parquet_filepath = hf_hub_download(
-                repo_id=args.hf_repo_id,
-                filename=parquet_filename,
-                repo_type="dataset",
-                local_dir=tmp_download_dir,
-                local_dir_use_symlinks=False,
-            )
+    try:
+        # Load dataset from HuggingFace using datasets library
+        # This automatically handles sharded parquet files
+        logger.info(f"Loading {split} split from {args.hf_repo_id}")
+        dataset = load_dataset(args.hf_repo_id, split=split)
+        logger.info(f"Loaded {len(dataset)} rows from {split} split")
 
-            # Load and process Parquet file
-            df_raw = pd.read_parquet(local_parquet_filepath)
-            logger.info(f"Loaded {len(df_raw)} rows from {parquet_filename}")
-            
-            # Filter only level == "hard" rows
-            if "level" in df_raw.columns:
-                df_raw = df_raw[df_raw["level"] == "hard"]
-                logger.info(f"Filtered to {len(df_raw)} rows with level=='hard'")
-            else:
-                logger.warning("'level' column not found in dataset, skipping filter")
+        # Convert to pandas DataFrame for easier processing
+        df_raw = dataset.to_pandas()
+        
+        # Filter only level == "hard" rows
+        if "level" in df_raw.columns:
+            df_raw = df_raw[df_raw["level"] == "hard"]
+            logger.info(f"Filtered to {len(df_raw)} rows with level=='hard'")
+        else:
+            logger.warning("'level' column not found in dataset, skipping filter")
 
-            def apply_process_row(row, split_name=split):
-                return process_single_row(row, current_split_name=split_name, row_index=row.name)
+        def apply_process_row(row, split_name=split):
+            return process_single_row(row, current_split_name=split_name, row_index=row.name)
 
-            df_processed = df_raw.apply(apply_process_row, axis=1)
+        df_processed = df_raw.apply(apply_process_row, axis=1)
 
-            # Save processed DataFrame
-            output_file_path = os.path.join(local_save_dir, f"{split}.parquet")
-            df_processed.to_parquet(output_file_path, index=False)
-            logger.info(f"Saved {len(df_processed)} processed rows to {output_file_path}")
-            processed_files.append(output_file_path)
+        # Save processed DataFrame
+        output_file_path = os.path.join(local_save_dir, f"{split}.parquet")
+        df_processed.to_parquet(output_file_path, index=False)
+        logger.info(f"Saved {len(df_processed)} processed rows to {output_file_path}")
+        processed_files.append(output_file_path)
 
-        except EntryNotFoundError:
-            logger.warning(f"{parquet_filename} not found in repository {args.hf_repo_id}")
-        except Exception as e:
-            logger.error(f"Error processing {split} split: {e}")
+    except Exception as e:
+        logger.error(f"Error processing {split} split: {e}")
+        raise
 
     if not processed_files:
         logger.warning("No data was processed or saved")
