@@ -25,7 +25,7 @@ set -x
 
 # make sure your current working directory is the root of the project
 ulimit -n 65535
-WANDB_API_KEY="b39e3b21e60be7ba75d3a666603cbf281b0c442c" 
+WANDB_API_KEY="0559d52399bc5d3fd8e373bb4b8b6e8db054b9f7" 
 PROJECT_DIR="$(pwd)"
 CONFIG_PATH="$PROJECT_DIR/examples/sglang_multiturn/config"
 
@@ -34,6 +34,8 @@ TRAIN_DATA="$PROJECT_DIR/data/hotpotqa_hard_train/train.parquet"
 VAL_DATA="$PROJECT_DIR/data/hotpotqa_hard_train/validation.parquet"
 # Tool config path
 TOOL_CONFIG="$CONFIG_PATH/tool_config/search_tool_config.yaml"
+
+    actor_rollout_ref.hybrid_engine=True \
 
 python3 -m verl.trainer.main_ppo \
     --config-path="$CONFIG_PATH" \
@@ -46,6 +48,8 @@ python3 -m verl.trainer.main_ppo \
     data.filter_overlong_prompts=True \
     data.truncation='error' \
     data.return_raw_chat=True \
+    actor_rollout_ref.rollout.multi_turn.max_assistant_turns=15 \
+    actor_rollout_ref.rollout.multi_turn.max_tool_response_length=8192 \
     actor_rollout_ref.model.path=Qwen/Qwen2.5-7B-Instruct \
     actor_rollout_ref.actor.optim.lr=1e-6 \
     actor_rollout_ref.actor.optim.lr_warmup_steps=10 \
@@ -53,7 +57,7 @@ python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.actor.ppo_mini_batch_size=128 \
     actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=4 \
     actor_rollout_ref.actor.use_dynamic_bsz=True \
-    actor_rollout_ref.actor.ppo_max_token_len_per_gpu=24576 \
+    actor_rollout_ref.actor.ppo_max_token_len_per_gpu=32768 \
     actor_rollout_ref.actor.use_kl_loss=True \
     actor_rollout_ref.actor.kl_loss_coef=0.001 \
     actor_rollout_ref.actor.kl_loss_type=low_var_kl \
@@ -61,10 +65,10 @@ python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.model.enable_gradient_checkpointing=True \
     actor_rollout_ref.actor.fsdp_config.param_offload=True \
     actor_rollout_ref.actor.fsdp_config.optimizer_offload=True \
-    actor_rollout_ref.rollout.max_model_len=15000 \
+    actor_rollout_ref.rollout.max_model_len=32768 \
     actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu=4 \
     actor_rollout_ref.rollout.log_prob_use_dynamic_bsz=True \
-    actor_rollout_ref.rollout.log_prob_max_token_len_per_gpu=24576 \
+    actor_rollout_ref.rollout.log_prob_max_token_len_per_gpu=32768 \
     actor_rollout_ref.rollout.tensor_model_parallel_size=1 \
     actor_rollout_ref.rollout.name=vllm \
     actor_rollout_ref.rollout.mode=async \
@@ -76,7 +80,7 @@ python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.rollout.agent.default_agent_loop=tool_agent \
     actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu=4 \
     actor_rollout_ref.ref.log_prob_use_dynamic_bsz=True \
-    actor_rollout_ref.ref.log_prob_max_token_len_per_gpu=24576 \
+    actor_rollout_ref.ref.log_prob_max_token_len_per_gpu=32768 \
     actor_rollout_ref.ref.fsdp_config.param_offload=True \
     algorithm.use_kl_in_reward=False \
     trainer.critic_warmup=0 \
