@@ -35,7 +35,7 @@ VAL_DATA="$PROJECT_DIR/data/hotpotqa_hard_train/validation.parquet"
 # Tool config path
 TOOL_CONFIG="$CONFIG_PATH/tool_config/search_tool_config.yaml"
 
-    actor_rollout_ref.hybrid_engine=True \
+
 
 python3 -m verl.trainer.main_ppo \
     --config-path="$CONFIG_PATH" \
@@ -81,13 +81,12 @@ python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.ref.log_prob_use_dynamic_bsz=True \
     actor_rollout_ref.ref.log_prob_max_token_len_per_gpu=32768 \
     actor_rollout_ref.ref.fsdp_config.param_offload=True \
-    
     algorithm.use_kl_in_reward=False \
     trainer.critic_warmup=0 \
     trainer.val_before_train=False \
     trainer.logger='["console","wandb"]' \
     trainer.project_name='search_r1_like_grpo_vllm' \
-    trainer.experiment_name='qwen2.5-7b-instruct-grpo-vllm-async-toolagent-n5-4gpu' \
+    trainer.experiment_name='qwen2.5-7b-instruct-grpo-vllm-async-toolagent-n5-8gpu' \
     trainer.n_gpus_per_node=8 \
     trainer.nnodes=1 \
     trainer.save_freq=100 \
