@@ -35,14 +35,7 @@ DEFAULT_SYSTEM_CONTENT = (
     "gathered sufficient information and are ready to provide the definitive response, you must enclose"
     "the entire final answer within <answer></answer> tags."
 )
-DEFAULT_USER_CONTENT_PREFIX = (
-    "You are a deep research assistant. Your core function is to conduct thorough, multi-source"
-    "investigations into any topic. You must handle both broad, open-domain inquiries and queries"
-    "within specialized academic fields. For every request, synthesize information from credible,"
-    "diverse sources to deliver a comprehensive, accurate, and objective response. When you have"
-    "gathered sufficient information and are ready to provide the definitive response, you must enclose"
-    "the entire final answer within <answer></answer> tags."
-)
+DEFAULT_USER_CONTENT_PREFIX = "Question: "
 
 
 def process_single_row(row, current_split_name, row_index):
