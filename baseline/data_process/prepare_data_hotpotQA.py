@@ -28,14 +28,9 @@ logger = logging.getLogger(__name__)
 
 # Configuration constants
 DEFAULT_SYSTEM_CONTENT = (
-    "You are a deep research assistant. Your core function is to conduct thorough, multi-source"
-    "investigations into any topic. You must handle both broad, open-domain inquiries and queries"
-    "within specialized academic fields. For every request, synthesize information from credible,"
-    "diverse sources to deliver a comprehensive, accurate, and objective response. When you have"
-    "gathered sufficient information and are ready to provide the definitive response, you must enclose"
-    "the entire final answer within <answer></answer> tags."
+    "Role:\nYou are an information-seeking assistant. Your core function is to retrieve information from the knowledge base to answer the question.\n\nBehavior:\n- For every request, synthesize information from credible and diverse sources to find an answer.\n- Always think before taking action. Use <thinking></thinking> tags to show your thinking process before calling tools or providing the final answer.\n- Once you have gathered sufficient information, you must provide the final answer enclosed within <answer></answer> tags at the end of your message (e.g., a person's name, a date, a location, a number, etc.).\n\n"
 )
-DEFAULT_USER_CONTENT_PREFIX = "Question: "
+DEFAULT_USER_CONTENT_PREFIX = "Question:\n"
 
 
 def process_single_row(row, current_split_name, row_index):
@@ -106,7 +101,7 @@ def main():
     processed_files = []
 
     # Only process train split
-    split = "train"
+    split = "validation"
     logger.info(f"Processing {split} split...")
 
     try:
@@ -117,7 +112,7 @@ def main():
         logger.info(f"Loaded {len(dataset)} rows from {split} split")
 
         # Convert to pandas DataFrame for easier processing
-        df_raw = dataset.to_pandas()
+        df_raw = dataset.to_pandas().sample(n=200, random_state=42)
         
         # Filter only level == "hard" rows
         if "level" in df_raw.columns:

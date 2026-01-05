@@ -28,26 +28,29 @@ VLLM_URL="${VLLM_URL:-http://10.244.50.63:8000/v1}"
 # Retrieval server endpoint for search execution
 RETRIEVAL_URL="${RETRIEVAL_URL:-http://127.0.0.1:8000/retrieve}"
 
+# Model path for loading tokenizer
+MODEL_PATH="${MODEL_PATH:-Qwen/Qwen3-30B-A3B-Instruct-2507}"
+
 # Maximum assistant turns per conversation
-MAX_ASSISTANT_TURNS="${MAX_ASSISTANT_TURNS:-10}"
+MAX_ASSISTANT_TURNS="${MAX_ASSISTANT_TURNS:-15}"
 
 # Number of samples to process (-1 for all)
-MAX_SAMPLES="${MAX_SAMPLES:--3000}"
+MAX_SAMPLES="${MAX_SAMPLES:--1}"
 
 # Input parquet file with HotpotQA data
 INPUT_FILE="${INPUT_FILE:-data/hotpotqa_hard_train/train.parquet}"
 
 # Output parquet file path
-OUTPUT_FILE="${OUTPUT_FILE:-baseline/DataKD/train_distilled.parquet}"
+OUTPUT_FILE="${OUTPUT_FILE:-baseline/DataKD/data/train_distilled_qwen3.30b.parquet}"
 
 # Batch size for async processing
-BATCH_SIZE="${BATCH_SIZE:-16}"
+BATCH_SIZE="${BATCH_SIZE:-200}"
 
 # Sampling temperature
 TEMPERATURE="${TEMPERATURE:-0.7}"
 
 # Max tokens per generation
-MAX_TOKENS="${MAX_TOKENS:-2048}"
+MAX_TOKENS="${MAX_TOKENS:-4096}"
 
 # System prompt (optional override)
 SYSTEM_PROMPT="${SYSTEM_PROMPT:-You are a deep research assistant. Your core function is to conduct thorough, multi-source investigations into any topic. You must handle both broad, open-domain inquiries and queries within specialized academic fields. For every request, synthesize information from credible, diverse sources to deliver a comprehensive, accurate, and objective response. When you have gathered sufficient information and are ready to provide the definitive response, you must enclose the entire final answer within <answer></answer> tags.}"
@@ -61,6 +64,7 @@ echo "Data Distillation - Search Tool Generation"
 echo "=========================================="
 echo "vLLM URL: $VLLM_URL"
 echo "Retrieval URL: $RETRIEVAL_URL"
+echo "Model Path: $MODEL_PATH"
 echo "Max Assistant Turns: $MAX_ASSISTANT_TURNS"
 echo "Max Samples: $MAX_SAMPLES"
 echo "Input File: $INPUT_FILE"
@@ -73,6 +77,7 @@ echo "=========================================="
 python3 baseline/DataKD/generate_search_data.py \
     --vllm_url "$VLLM_URL" \
     --retrieval_url "$RETRIEVAL_URL" \
+    --model_path "$MODEL_PATH" \
     --max_assistant_turns "$MAX_ASSISTANT_TURNS" \
     --max_samples "$MAX_SAMPLES" \
     --input_file "$INPUT_FILE" \
@@ -80,7 +85,7 @@ python3 baseline/DataKD/generate_search_data.py \
     --batch_size "$BATCH_SIZE" \
     --temperature "$TEMPERATURE" \
     --max_tokens "$MAX_TOKENS" \
-    --system_prompt "$SYSTEM_PROMPT"
+    # --system_prompt "$SYSTEM_PROMPT"
 
 echo "=========================================="
 echo "Data generation completed!"
