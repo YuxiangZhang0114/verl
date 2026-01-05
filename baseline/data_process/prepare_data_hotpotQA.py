@@ -75,17 +75,25 @@ def process_single_row(row, current_split_name, row_index):
 
     # Build complete extra_info structure
     extra_info = {
-        "index": row_index,
-        "need_tools_kwargs": True,
-        "question": question,
         "split": current_split_name,
+        "index": row_index,
+        "answer": answer,
+        "question": question,
+        "need_tools_kwargs": True,
         "tools_kwargs": tools_kwargs,
+        "interaction_kwargs": {
+            "query": user_content,
+            "ground_truth": ground_truth,
+        },
     }
 
     return pd.Series(
         {
             "data_source": data_source_tagged,
+            "agent_name": "tool_agent",
             "prompt": prompt,
+            "ability": "search",
+            "reward_model": {"style": "rule", "ground_truth": ground_truth},
             "extra_info": extra_info,
         }
     )
