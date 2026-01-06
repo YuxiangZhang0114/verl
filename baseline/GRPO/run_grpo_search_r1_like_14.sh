@@ -35,7 +35,7 @@ VAL_DATA="$PROJECT_DIR/data/hotpotqa_hard_train/validation.parquet"
 # Tool config path
 TOOL_CONFIG="$CONFIG_PATH/tool_config/search_tool_config.yaml"
 
-save_path="/mnt/workspace/checkpoints/search_r1_like_grpo_vllm_qwen2.5-14b-instruct"
+save_path="/mnt/workspace/checkpoints/search_r1_like_grpo_vllm_qwen2.5-14b-instruct_llmmatch"
 
 
 python3 -m verl.trainer.main_ppo \
@@ -76,7 +76,7 @@ python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.rollout.gpu_memory_utilization=0.6 \
     actor_rollout_ref.rollout.n=5 \
     actor_rollout_ref.rollout.multi_turn.enable=True \
-    actor_rollout_ref.rollout.multi_turn.max_assistant_turns=15 \
+    actor_rollout_ref.rollout.multi_turn.max_assistant_turns=20 \
     actor_rollout_ref.rollout.multi_turn.format=hermes \
     actor_rollout_ref.rollout.agent.default_agent_loop=tool_agent \
     actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu=4 \
@@ -88,7 +88,7 @@ python3 -m verl.trainer.main_ppo \
     trainer.val_before_train=False \
     trainer.logger='["console","wandb"]' \
     trainer.project_name='search_r1_like_grpo_vllm' \
-    trainer.experiment_name='qwen2.5-14b-instruct-grpo-vllm-async-toolagent-n5-8gpu' \
+    trainer.experiment_name='qwen2.5-14b-instruct-grpo-vllm-async-toolagent-n5-8gpu_llmmatch' \
     trainer.n_gpus_per_node=8 \
     trainer.nnodes=1 \
     trainer.save_freq=50 \
@@ -96,5 +96,5 @@ python3 -m verl.trainer.main_ppo \
     data.train_files="$TRAIN_DATA" \
     data.val_files="$VAL_DATA" \
     actor_rollout_ref.rollout.multi_turn.tool_config_path="$TOOL_CONFIG" \
-    trainer.total_epochs=2 "$@"
+    trainer.total_epochs=4 "$@"
 
