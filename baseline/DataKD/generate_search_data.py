@@ -67,6 +67,7 @@ Behavior:
 - Once you have gathered sufficient information, you must provide the final answer enclosed within <answer></answer> tags at the end of your message (e.g., a person's name, a date, a location, a number, etc.).
 
 """
+
 # Tool schema for search function
 SEARCH_TOOL_SCHEMA = {
     "type": "function",
