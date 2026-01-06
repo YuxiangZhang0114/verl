@@ -158,11 +158,11 @@ def em_check(prediction, golden_answers):
             break
     
     # If exact match failed and LLM matching is enabled, try LLM matching
-    if score == 0 and LLM_MATCH_ENABLED:
-        for golden_answer in golden_answers:
-            if llm_match(prediction, golden_answer):
-                score = 1
-                break
+    # if score == 0 and LLM_MATCH_ENABLED:
+    #     for golden_answer in golden_answers:
+    #         if llm_match(prediction, golden_answer):
+    #             score = 1
+    #             break
     
     return score
 
