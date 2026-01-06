@@ -27,9 +27,15 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # Configuration constants
-DEFAULT_SYSTEM_CONTENT = (
-    "Role:\nYou are an information-seeking assistant. Your core function is to retrieve information from the knowledge base to answer the question.\n\nBehavior:\n- For every request, synthesize information from credible and diverse sources to find an answer.\n- Always think before taking action. Use <thinking></thinking> tags to show your thinking process before calling tools or providing the final answer.\n- Once you have gathered sufficient information, you must provide the final answer enclosed within <answer></answer> tags at the end of your message (e.g., a person's name, a date, a location, a number, etc.).\n\n"
-)
+DEFAULT_SYSTEM_CONTENT = """Role:
+You are an information-seeking assistant. Your core function is to retrieve information from the knowledge base to answer the question.
+
+Behavior:
+- For every request, reason step by step and use tools to synthesize information from credible and diverse sources to find an answer.
+- Always think before taking action. Use <thinking></thinking> tags to show your thinking process before calling tools.
+- Once you have gathered sufficient information, provide the final answer within <answer>Answer</answer> tags at the end of your message (e.g., a person's name, a date, a location, a number, etc.).
+
+"""
 DEFAULT_USER_CONTENT_PREFIX = "Question:\n"
 
 
@@ -101,7 +107,7 @@ def main():
     processed_files = []
 
     # Only process train split
-    split = "validation"
+    split = "train"
     logger.info(f"Processing {split} split...")
 
     try:
@@ -115,16 +121,16 @@ def main():
         df_raw = dataset.to_pandas()
         
         # Filter only level == "hard" rows
-        # if "level" in df_raw.columns:
-        #     df_raw = df_raw[df_raw["level"] == "hard"]
-        #     logger.info(f"Filtered to {len(df_raw)} rows with level=='hard'")
-        # else:
-        #     logger.warning("'level' column not found in dataset, skipping filter")
+        if "level" in df_raw.columns:
+            df_raw = df_raw[df_raw["level"] == "hard"]
+            logger.info(f"Filtered to {len(df_raw)} rows with level=='hard'")
+        else:
+            logger.warning("'level' column not found in dataset, skipping filter")
 
         def apply_process_row(row, split_name=split):
             return process_single_row(row, current_split_name=split_name, row_index=row.name)
 
-        df_raw = df_raw.sample(n=200, random_state=42)
+        df_raw = df_raw.sample(n=5000, random_state=42)
         df_processed = df_raw.apply(apply_process_row, axis=1)
 
         # Save processed DataFrame

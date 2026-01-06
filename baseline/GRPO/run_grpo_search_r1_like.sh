@@ -25,7 +25,7 @@ set -x
 
 # make sure your current working directory is the root of the project
 ulimit -n 65535
-WANDB_API_KEY="0559d52399bc5d3fd8e373bb4b8b6e8db054b9f7"
+export WANDB_API_KEY="0559d52399bc5d3fd8e373bb4b8b6e8db054b9f7"
 PROJECT_DIR="$(pwd)"
 CONFIG_PATH="$PROJECT_DIR/examples/sglang_multiturn/config"
 
