@@ -232,7 +232,7 @@ class SearchTool(BaseTool):
 
         Args:
             instance_id: The instance ID of the tool
-            parameters: Tool parameters containing query_list and optional timeout
+            parameters: Tool parameters containing query (or query_list) and optional topk
 
         Returns: tool_response, tool_reward_score, tool_metrics
             tool_response: The response str of the tool.
@@ -240,17 +240,40 @@ class SearchTool(BaseTool):
             tool_metrics: The metrics of the tool.
         """
         timeout = self.timeout
+        
+        # Support both single 'query' parameter and 'query_list' parameter for backward compatibility
+        query_from_params = parameters.get("query")
         query_list_from_params = parameters.get("query_list")
-
-        if not query_list_from_params or not isinstance(query_list_from_params, list):
-            error_msg = "Error: 'query_list' is missing, empty, or not a list in parameters."
+        
+        # Convert single query to query_list if needed
+        if query_from_params:
+            if isinstance(query_from_params, str):
+                query_list = [query_from_params]
+            else:
+                error_msg = "Error: 'query' must be a string."
+                logger.error(f"[SearchTool] {error_msg} Received parameters: {parameters}")
+                return ToolResponse(text=json.dumps({"result": error_msg})), 0.0, {}
+        elif query_list_from_params:
+            if isinstance(query_list_from_params, list):
+                query_list = query_list_from_params
+            else:
+                error_msg = "Error: 'query_list' must be a list."
+                logger.error(f"[SearchTool] {error_msg} Received parameters: {parameters}")
+                return ToolResponse(text=json.dumps({"result": error_msg})), 0.0, {}
+        else:
+            error_msg = "Error: Either 'query' or 'query_list' must be provided in parameters."
             logger.error(f"[SearchTool] {error_msg} Received parameters: {parameters}")
             return ToolResponse(text=json.dumps({"result": error_msg})), 0.0, {}
+        
+        # Get topk from parameters or use default from config
+        topk = parameters.get("topk", self.topk)
+        if not isinstance(topk, int) or topk <= 0:
+            topk = self.topk
 
         # Execute search using Ray execution pool
         try:
             result_text, metadata = await self.execution_pool.execute.remote(
-                self.execute_search, instance_id, query_list_from_params, self.retrieval_service_url, self.topk, timeout
+                self.execute_search, instance_id, query_list, self.retrieval_service_url, topk, timeout
             )
 
             # Store results in instance dictionary

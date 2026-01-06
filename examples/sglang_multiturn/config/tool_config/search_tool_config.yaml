@@ -14,10 +14,12 @@ tools:
         parameters:
           type: object
           properties:
-            query_list:
-              type: array
-              item:
-                type: string
-              description: A list of fully-formed semantic queries. The tool will return search results for each query.
-          required: 
-            - query_list
+            query:
+              type: string
+              description: A fully-formed semantic query string. The tool will return search results for this query.
+            topk:
+              type: integer
+              description: Number of top results to return. Default is 5.
+              default: 5
+          required:
+            - query
