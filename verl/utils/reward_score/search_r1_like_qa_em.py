@@ -129,7 +129,7 @@ Do these answers match? Respond with only "YES" or "NO":"""
     except Exception as e:
         # If LLM matching fails, return 0 (no match)
 
-        # print(f"Warning: LLM matching failed: {e}")
+        print(f"Warning: LLM matching failed: {e}")
         return 0
 
 
