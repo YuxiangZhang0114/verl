@@ -18,6 +18,13 @@
 import random
 import re
 import string
+import os
+from typing import List, Optional
+
+try:
+    from openai import OpenAI
+except ImportError:
+    OpenAI = None
 
 
 def normalize_answer(s):
@@ -37,16 +44,125 @@ def normalize_answer(s):
     return white_space_fix(remove_articles(remove_punc(lower(s))))
 
 
+# LLM matching configuration
+LLM_MATCH_BASE_URL = os.environ.get("LLM_MATCH_BASE_URL", "http://10.244.209.173:8880/v1")
+LLM_MATCH_MODEL = os.environ.get("LLM_MATCH_MODEL", "Qwen/Qwen3-4B-Instruct-2507-FP8")
+LLM_MATCH_ENABLED = os.environ.get("LLM_MATCH_ENABLED", "true").lower() == "true"
+
+# Global OpenAI client for LLM matching
+_llm_client = None
+
+
+def _get_llm_client():
+    """Get or create the OpenAI client for LLM matching."""
+    global _llm_client
+    if _llm_client is None and OpenAI is not None:
+        _llm_client = OpenAI(
+            api_key="EMPTY",  # vLLM doesn't require a real API key
+            base_url=LLM_MATCH_BASE_URL,
+        )
+    return _llm_client
+
+
+def llm_match(prediction: str, golden_answer: str) -> int:
+    """
+    Use LLM to determine if the prediction semantically matches the golden answer.
+    
+    Args:
+        prediction: The predicted answer string
+        golden_answer: The golden answer string
+        
+    Returns:
+        1 if the LLM determines they match, 0 otherwise
+    """
+    if not LLM_MATCH_ENABLED or OpenAI is None:
+        return 0
+    
+    client = _get_llm_client()
+    if client is None:
+        return 0
+    
+    # Strict and rigorous prompt for answer matching
+    prompt = f"""You are an expert evaluator tasked with determining whether two answers are semantically equivalent and correct.
+
+CRITICAL EVALUATION CRITERIA:
+1. The answers must convey the SAME core information, facts, or meaning
+2. Minor differences in wording, formatting, or phrasing are acceptable ONLY if the semantic content is identical
+3. Numerical values must match exactly (e.g., "5" vs "five" is acceptable, but "5" vs "6" is not)
+4. Proper nouns, names, and specific entities must match exactly
+5. The answer must be factually correct and complete - partial or incorrect information does not match
+6. Synonyms are acceptable ONLY if they preserve the exact meaning without ambiguity
+7. Different units of measurement are NOT equivalent unless explicitly converted (e.g., "5 meters" vs "500 centimeters" is acceptable, but "5 meters" vs "5 feet" is not)
+
+EVALUATION INSTRUCTIONS:
+- Be STRICT and RIGOROUS in your assessment
+- Do NOT accept matches if there is any ambiguity, incompleteness, or factual discrepancy
+- Consider context: if the question requires a specific format or precision, both answers must meet that requirement
+- Return ONLY "YES" if the answers match, or "NO" if they do not match
+- Do not provide explanations, justifications, or additional text - only "YES" or "NO"
+
+PREDICTED ANSWER: {prediction}
+
+GOLDEN ANSWER: {golden_answer}
+
+Do these answers match? Respond with only "YES" or "NO":"""
+
+    try:
+        response = client.chat.completions.create(
+            model=LLM_MATCH_MODEL,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a precise and rigorous answer matching evaluator. You must be strict and only return 'YES' or 'NO'."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.0,  # Use deterministic output
+            max_tokens=15,  # Only need YES/NO
+        )
+        
+        result = response.choices[0].message.content.strip().upper()
+        return 1 if "YES" in result and "NO" not in result else 0
+    except Exception as e:
+        # If LLM matching fails, return 0 (no match)
+        print(f"Warning: LLM matching failed: {e}")
+        return 0
+
+
 def em_check(prediction, golden_answers):
+    """
+    Check if prediction exactly matches any golden answer.
+    If exact match fails and LLM matching is enabled, use LLM to check semantic equivalence.
+    
+    Args:
+        prediction: The predicted answer string
+        golden_answers: A string or list of golden answer strings
+        
+    Returns:
+        1 if match found (exact or LLM), 0 otherwise
+    """
     if isinstance(golden_answers, str):
         golden_answers = [golden_answers]
     normalized_prediction = normalize_answer(prediction)
     score = 0
+    
+    # First try exact match
     for golden_answer in golden_answers:
-        golden_answer = normalize_answer(golden_answer)
-        if golden_answer == normalized_prediction:
+        golden_answer_normalized = normalize_answer(golden_answer)
+        if golden_answer_normalized == normalized_prediction:
             score = 1
             break
+    
+    # If exact match failed and LLM matching is enabled, try LLM matching
+    if score == 0 and LLM_MATCH_ENABLED:
+        for golden_answer in golden_answers:
+            if llm_match(prediction, golden_answer):
+                score = 1
+                break
+    
     return score
 
 
