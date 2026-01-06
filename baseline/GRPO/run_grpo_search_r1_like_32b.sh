@@ -79,7 +79,7 @@ python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.rollout.gpu_memory_utilization=0.6 \
     actor_rollout_ref.rollout.n=5 \
     actor_rollout_ref.rollout.multi_turn.enable=True \
-    actor_rollout_ref.rollout.multi_turn.max_assistant_turns=20 \
+    actor_rollout_ref.rollout.multi_turn.max_assistant_turns=16 \
     actor_rollout_ref.rollout.multi_turn.format=hermes \
     actor_rollout_ref.rollout.agent.default_agent_loop=tool_agent \
     actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu=4 \
