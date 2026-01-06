@@ -88,7 +88,7 @@ python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.ref.fsdp_config.param_offload=True \
     algorithm.use_kl_in_reward=True \
     trainer.critic_warmup=0 \
-    trainer.val_before_train=False \
+    trainer.val_before_train=True \
     trainer.logger='["console","wandb"]' \
     trainer.project_name='search_r1_like_grpo_vllm' \
     trainer.experiment_name='qwen2.5-32b-instruct-grpo-vllm-async-toolagent-n5-8gpu_llmmatch' \
