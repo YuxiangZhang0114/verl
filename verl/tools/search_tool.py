@@ -79,7 +79,15 @@ class SearchExecutionWorker:
 
     def _init_rate_limit(self, rate_limit):
         """Initialize singleton rate limiter."""
-        return TokenBucketWorker.options(name="rate-limiter", get_if_exists=True).remote(rate_limit)
+        try:
+            return TokenBucketWorker.options(
+                name="rate-limiter",
+                get_if_exists=True,
+                lifetime="detached"  # Keep actor alive across processes
+            ).remote(rate_limit)
+        except Exception as e:
+            logger.error(f"Failed to initialize rate limiter: {e}")
+            raise
 
     def ping(self):
         """Health check method."""
@@ -90,12 +98,26 @@ class SearchExecutionWorker:
         if self.rate_limit_worker:
             with ExitStack() as stack:
                 stack.callback(self.rate_limit_worker.release.remote)
-                ray.get(self.rate_limit_worker.acquire.remote())
                 try:
-                    return fn(*fn_args, **fn_kwargs)
-                except Exception as e:
-                    # TODO we should make this available to the tool caller
-                    logger.warning(f"Error when executing search: {e}")
+                    # Add timeout for acquire operation
+                    ray.get(self.rate_limit_worker.acquire.remote(), timeout=30)
+                    try:
+                        return fn(*fn_args, **fn_kwargs)
+                    except Exception as e:
+                        logger.warning(f"Error when executing search: {e}")
+                        raise
+                except ray.exceptions.GetTimeoutError:
+                    logger.error("Timeout acquiring rate limiter token")
+                    raise TimeoutError("Failed to acquire rate limiter token within 30 seconds")
+                except ray.exceptions.RayActorError as e:
+                    logger.error(f"Rate limiter actor died: {e}")
+                    # Try to execute without rate limiting as fallback
+                    logger.warning("Executing search without rate limiting due to actor failure")
+                    try:
+                        return fn(*fn_args, **fn_kwargs)
+                    except Exception as inner_e:
+                        logger.error(f"Search execution also failed: {inner_e}")
+                        raise
         else:
             return fn(*fn_args, **fn_kwargs)
 
@@ -160,8 +182,9 @@ class SearchTool(BaseTool):
         self._instance_dict = {}
 
         # Worker and rate limiting configuration
-        self.num_workers = config.get("num_workers", 120)
-        self.rate_limit = config.get("rate_limit", 120)
+        # Use much lower defaults to avoid resource exhaustion in distributed settings
+        self.num_workers = config.get("num_workers", 4)
+        self.rate_limit = config.get("rate_limit", 10)
         self.timeout = config.get("timeout", 30)
 
         self.enable_global_rate_limit = config.get("enable_global_rate_limit", True)
