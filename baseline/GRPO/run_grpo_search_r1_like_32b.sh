@@ -44,8 +44,8 @@ python3 -m verl.trainer.main_ppo \
     --config-name='search_multiturn_grpo' \
     algorithm.adv_estimator=grpo \
     data.train_batch_size=64 \
-    data.val_batch_size=200 \
-    data.max_prompt_length=4096 \
+    data.val_batch_size=400 \
+    data.max_prompt_length=2048 \
     data.max_response_length=20480 \
     data.filter_overlong_prompts=True \
     data.truncation='error' \
