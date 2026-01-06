@@ -5,7 +5,7 @@ tools:
       num_workers: 2
       rate_limit: 5
       timeout: 60
-      enable_global_rate_limit: true
+      enable_global_rate_limit: false
       type: native
     tool_schema:
       type: function

@@ -96,5 +96,5 @@ python3 -m verl.trainer.main_ppo \
     data.train_files="$TRAIN_DATA" \
     data.val_files="$VAL_DATA" \
     actor_rollout_ref.rollout.multi_turn.tool_config_path="$TOOL_CONFIG" \
-    trainer.total_epochs=4 "$@"
+    trainer.total_epochs=2 "$@"
 

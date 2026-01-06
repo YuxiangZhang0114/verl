@@ -128,7 +128,8 @@ Do these answers match? Respond with only "YES" or "NO":"""
         return 1 if "YES" in result and "NO" not in result else 0
     except Exception as e:
         # If LLM matching fails, return 0 (no match)
-        print(f"Warning: LLM matching failed: {e}")
+
+        # print(f"Warning: LLM matching failed: {e}")
         return 0
 
 

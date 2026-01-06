@@ -35,7 +35,8 @@ VAL_DATA="$PROJECT_DIR/data/hotpotqa_hard_train/validation.parquet"
 # Tool config path
 TOOL_CONFIG="$CONFIG_PATH/tool_config/search_tool_config.yaml"
 
-save_path="/mnt/workspace/checkpoints/search_r1_like_grpo_vllm_qwen2.5-1b-instruct_llmmatch"
+save_path="/mnt/workspace/checkpoints/search_r1_like_grpo_vllm_qwen2.5-32b-instruct_llmmatch"
+sp_size=4
 
 
 python3 -m verl.trainer.main_ppo \
@@ -51,14 +52,14 @@ python3 -m verl.trainer.main_ppo \
     data.return_raw_chat=True \
     trainer.default_local_dir=$save_path \
     actor_rollout_ref.rollout.multi_turn.max_tool_response_length=10000 \
-    actor_rollout_ref.model.path=Qwen/Qwen2.5-7B-Instruct \
+    actor_rollout_ref.model.path=Qwen/Qwen2.5-32B-Instruct \
     actor_rollout_ref.actor.optim.lr=1e-6 \
     actor_rollout_ref.actor.optim.lr_warmup_steps=2 \
     actor_rollout_ref.model.use_remove_padding=True \
     actor_rollout_ref.actor.ppo_mini_batch_size=64 \
     actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=4 \
     actor_rollout_ref.actor.use_dynamic_bsz=True \
-    actor_rollout_ref.actor.ppo_max_token_len_per_gpu=32768 \
+    actor_rollout_ref.actor.ppo_max_token_len_per_gpu=26000 \
     actor_rollout_ref.actor.use_kl_loss=False \
     actor_rollout_ref.actor.kl_loss_coef=0.001 \
     actor_rollout_ref.actor.kl_loss_type=low_var_kl \
@@ -70,7 +71,9 @@ python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu=4 \
     actor_rollout_ref.rollout.log_prob_use_dynamic_bsz=True \
     actor_rollout_ref.rollout.log_prob_max_token_len_per_gpu=32768 \
-    actor_rollout_ref.rollout.tensor_model_parallel_size=1 \
+    actor_rollout_ref.rollout.tensor_model_parallel_size=2 \
+    actor_rollout_ref.actor.ulysses_sequence_parallel_size=${sp_size} \
+    actor_rollout_ref.ref.ulysses_sequence_parallel_size=${sp_size} \
     actor_rollout_ref.rollout.name=vllm \
     actor_rollout_ref.rollout.mode=async \
     actor_rollout_ref.rollout.gpu_memory_utilization=0.6 \
@@ -88,13 +91,13 @@ python3 -m verl.trainer.main_ppo \
     trainer.val_before_train=False \
     trainer.logger='["console","wandb"]' \
     trainer.project_name='search_r1_like_grpo_vllm' \
-    trainer.experiment_name='qwen2.5-7b-instruct-grpo-vllm-async-toolagent-n5-8gpu_llmmatch' \
+    trainer.experiment_name='qwen2.5-32b-instruct-grpo-vllm-async-toolagent-n5-8gpu_llmmatch' \
     trainer.n_gpus_per_node=8 \
     trainer.nnodes=1 \
-    trainer.save_freq=50 \
+    trainer.save_freq=80 \
     trainer.test_freq=10 \
     data.train_files="$TRAIN_DATA" \
     data.val_files="$VAL_DATA" \
     actor_rollout_ref.rollout.multi_turn.tool_config_path="$TOOL_CONFIG" \
-    trainer.total_epochs=4 "$@"
+    trainer.total_epochs=2 "$@"
 
