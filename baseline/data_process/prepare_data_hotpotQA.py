@@ -112,7 +112,7 @@ def main():
     processed_files = []
 
     # Only process train split
-    split = "validation"
+    split = "train"
     logger.info(f"Processing {split} split...")
 
     try:
@@ -126,16 +126,16 @@ def main():
         df_raw = dataset.to_pandas()
         
         # Filter only level == "hard" rows
-        # if "level" in df_raw.columns:
-        #     df_raw = df_raw[df_raw["level"] == "hard"]
-        #     logger.info(f"Filtered to {len(df_raw)} rows with level=='hard'")
-        # else:
-        #     logger.warning("'level' column not found in dataset, skipping filter")
+        if "level" in df_raw.columns:
+            df_raw = df_raw[df_raw["level"] == "hard"]
+            logger.info(f"Filtered to {len(df_raw)} rows with level=='hard'")
+        else:
+            logger.warning("'level' column not found in dataset, skipping filter")
 
         def apply_process_row(row, split_name=split):
             return process_single_row(row, current_split_name=split_name, row_index=row.name)
 
-        df_raw = df_raw.sample(n=200, random_state=42)
+        df_raw = df_raw.sample(n=10, random_state=42)
         df_processed = df_raw.apply(apply_process_row, axis=1)
 
         # Save processed DataFrame
