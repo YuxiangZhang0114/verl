@@ -35,6 +35,7 @@ VAL_DATA="$PROJECT_DIR/data/hotpotqa_hard_train/validation.parquet"
 # Tool config path
 TOOL_CONFIG="$CONFIG_PATH/tool_config/search_tool_config.yaml"
 
+save_path="/mnt/workspace/checkpoints/search_r1_like_grpo_vllm_qwen2.5-7b-instruct"
 
 
 python3 -m verl.trainer.main_ppo \
@@ -42,18 +43,19 @@ python3 -m verl.trainer.main_ppo \
     --config-name='search_multiturn_grpo' \
     algorithm.adv_estimator=grpo \
     data.train_batch_size=64 \
-    data.val_batch_size=128 \
+    data.val_batch_size=200 \
     data.max_prompt_length=4096 \
     data.max_response_length=20480 \
     data.filter_overlong_prompts=True \
     data.truncation='error' \
     data.return_raw_chat=True \
-    actor_rollout_ref.rollout.multi_turn.max_tool_response_length=8192 \
+    trainer.default_local_dir=$save_path \
+    actor_rollout_ref.rollout.multi_turn.max_tool_response_length=10000 \
     actor_rollout_ref.model.path=Qwen/Qwen2.5-7B-Instruct \
     actor_rollout_ref.actor.optim.lr=1e-6 \
-    actor_rollout_ref.actor.optim.lr_warmup_steps=10 \
+    actor_rollout_ref.actor.optim.lr_warmup_steps=2 \
     actor_rollout_ref.model.use_remove_padding=True \
-    actor_rollout_ref.actor.ppo_mini_batch_size=128 \
+    actor_rollout_ref.actor.ppo_mini_batch_size=64 \
     actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=4 \
     actor_rollout_ref.actor.use_dynamic_bsz=True \
     actor_rollout_ref.actor.ppo_max_token_len_per_gpu=32768 \
@@ -89,7 +91,7 @@ python3 -m verl.trainer.main_ppo \
     trainer.experiment_name='qwen2.5-7b-instruct-grpo-vllm-async-toolagent-n5-8gpu' \
     trainer.n_gpus_per_node=8 \
     trainer.nnodes=1 \
-    trainer.save_freq=100 \
+    trainer.save_freq=30 \
     trainer.test_freq=10 \
     data.train_files="$TRAIN_DATA" \
     data.val_files="$VAL_DATA" \
