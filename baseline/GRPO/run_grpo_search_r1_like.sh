@@ -25,7 +25,7 @@ set -x
 
 # make sure your current working directory is the root of the project
 ulimit -n 65535
-WANDB_API_KEY="0559d52399bc5d3fd8e373bb4b8b6e8db054b9f7" 
+WANDB_API_KEY="0559d52399bc5d3fd8e373bb4b8b6e8db054b9f7"
 PROJECT_DIR="$(pwd)"
 CONFIG_PATH="$PROJECT_DIR/examples/sglang_multiturn/config"
 
@@ -94,5 +94,5 @@ python3 -m verl.trainer.main_ppo \
     data.train_files="$TRAIN_DATA" \
     data.val_files="$VAL_DATA" \
     actor_rollout_ref.rollout.multi_turn.tool_config_path="$TOOL_CONFIG" \
-    trainer.total_epochs=1 $@
+    trainer.total_epochs=1 "$@"
 
