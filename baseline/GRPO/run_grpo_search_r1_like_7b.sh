@@ -43,6 +43,7 @@ TOOL_CONFIG="$PROJECT_DIR/baseline/GRPO/tool_config/search_tool_simple_config.ya
 
 save_path="/mnt/workspace/checkpoints/search_r1_like_grpo_sglang_qwen2.5-7b-instruct_asearcher"
 
+sp_size=2
 
 python3 -m verl.trainer.main_ppo \
     --config-path="$CONFIG_PATH" \
@@ -89,6 +90,8 @@ python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.ref.log_prob_use_dynamic_bsz=True \
     actor_rollout_ref.ref.log_prob_max_token_len_per_gpu=32768 \
     actor_rollout_ref.ref.fsdp_config.param_offload=True \
+    actor_rollout_ref.actor.ulysses_sequence_parallel_size=${sp_size} \
+    actor_rollout_ref.ref.ulysses_sequence_parallel_size=${sp_size} \
     algorithm.use_kl_in_reward=False \
     trainer.critic_warmup=0 \
     trainer.val_before_train=True \
