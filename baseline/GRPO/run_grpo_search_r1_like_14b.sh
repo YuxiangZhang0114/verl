@@ -25,6 +25,10 @@ set -x
 
 # make sure your current working directory is the root of the project
 ulimit -n 65535
+export RAY_NUM_CPUS=24
+export OMP_NUM_THREADS=1
+export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+
 export WANDB_API_KEY="0559d52399bc5d3fd8e373bb4b8b6e8db054b9f7"
 PROJECT_DIR="$(pwd)"
 CONFIG_PATH="$PROJECT_DIR/examples/sglang_multiturn/config"
