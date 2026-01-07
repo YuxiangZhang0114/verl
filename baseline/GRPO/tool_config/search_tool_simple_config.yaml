@@ -3,6 +3,7 @@
 tools:
   - class_name: verl.tools.search_tool_simple.SearchToolSimple
     config:
+      type: native
       retrieval_service_url: http://10.244.209.173:8000/retrieve
       topk: 5
       timeout: 60
