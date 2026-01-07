@@ -263,7 +263,6 @@ def compute_score_asearcher_with_thinking(solution_str, ground_truth, method="st
     """
     answer = extract_solution(solution_str=solution_str)
     do_print = random.randint(1, 100) == 1
-    open_count, close_count = count_thinking_tags(solution_str)
     if do_print:
         print("--------------------------------")
         print(f"Solution string: {solution_str}")
@@ -275,8 +274,6 @@ def compute_score_asearcher_with_thinking(solution_str, ground_truth, method="st
         return 0
     else:
         if subem_check(answer, ground_truth["target"]):
-            # if (open_count==0 or close_count==0) or ((open_count < 2 or close_count < 2) and solution_str.count("<tool_response>") > 0):
-            #     score = score / 4
-            return max(0, score)
+            return score
         else:
             return format_score
