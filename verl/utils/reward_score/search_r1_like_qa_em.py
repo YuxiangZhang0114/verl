@@ -174,7 +174,7 @@ def subem_check(prediction, golden_answers):
     score = 0
     for golden_answer in golden_answers:
         golden_answer = normalize_answer(golden_answer)
-        if golden_answer in normalized_prediction:
+        if golden_answer in normalized_prediction and len(golden_answer) < len(normalized_prediction)*2:
             score = 1
             break
     return score
@@ -256,13 +256,13 @@ def compute_score_subem(solution_str, ground_truth, method="strict", format_scor
         score: the score for the correct answer
     """
     answer = extract_solution(solution_str=solution_str)
-    do_print = random.randint(1, 128) == 1
+    do_print = random.randint(1, 100) == 1
 
     if do_print:
         print("--------------------------------")
+        print(f"Solution string: {solution_str}")
         print(f"Golden answers: {ground_truth['target']}")
         print(f"Extracted answer: {answer}")
-        print(f"Solution string: {solution_str}")
 
     if answer is None:
         return 0
