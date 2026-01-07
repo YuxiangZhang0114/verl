@@ -275,8 +275,8 @@ def compute_score_asearcher_with_thinking(solution_str, ground_truth, method="st
         return 0
     else:
         if subem_check(answer, ground_truth["target"]):
-            if (open_count==0 or close_count==0) or ((open_count < 2 or close_count < 2) and solution_str.count("<tool_response>") > 0):
-                score = score / 4
+            # if (open_count==0 or close_count==0) or ((open_count < 2 or close_count < 2) and solution_str.count("<tool_response>") > 0):
+            #     score = score / 4
             return max(0, score)
         else:
             return format_score
