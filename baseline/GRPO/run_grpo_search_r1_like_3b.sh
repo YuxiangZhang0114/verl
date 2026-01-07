@@ -24,7 +24,7 @@
 set -x
 export RAY_NUM_CPUS=24
 export OMP_NUM_THREADS=1
-export CUDA_VISIBLE_DEVICES=4,5,6,7
+export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 # make sure your current working directory is the root of the project
 ulimit -n 65535
 export WANDB_API_KEY="0559d52399bc5d3fd8e373bb4b8b6e8db054b9f7"
@@ -92,7 +92,7 @@ python3 -m verl.trainer.main_ppo \
     trainer.logger='["console","wandb"]' \
     trainer.project_name='search_r1_like_grpo_vllm' \
     trainer.experiment_name='qwen2.5-3b-instruct-grpo-sglang-async-toolagent-n5-8gpu_asearcher' \
-    trainer.n_gpus_per_node=4 \
+    trainer.n_gpus_per_node=8 \
     trainer.nnodes=1 \
     trainer.save_freq=50 \
     trainer.test_freq=10 \
