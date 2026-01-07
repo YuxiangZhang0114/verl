@@ -1,0 +1,26 @@
+# Simple Search Tool Configuration
+# 使用简化版搜索工具，去掉 Ray actor 和 rate limiting 机制
+tools:
+  - class_name: verl.tools.search_tool_simple.SearchToolSimple
+    config:
+      retrieval_service_url: http://10.244.209.173:8000/retrieve
+      topk: 5
+      timeout: 60
+    tool_schema:
+      type: function
+      function:
+        name: search
+        description: Searches the web for relevant information based on the given query.
+        parameters:
+          type: object
+          properties:
+            query:
+              type: string
+              description: A fully-formed semantic query string. The tool will return search results for this query.
+            topk:
+              type: integer
+              description: Number of top results to return. Default is 3.
+              default: 3
+          required:
+            - query
+

@@ -39,7 +39,7 @@ CONFIG_PATH="$PROJECT_DIR/examples/sglang_multiturn/config"
 TRAIN_DATA="$PROJECT_DIR/data/asearcher_train/train.parquet"
 VAL_DATA="$PROJECT_DIR/data/hotpotqa_hard_train/validation.parquet"
 # Tool config path
-TOOL_CONFIG="$CONFIG_PATH/tool_config/search_tool_config.yaml"
+TOOL_CONFIG="$PROJECT_DIR/baseline/GRPO/tool_config/search_tool_simple_config.yaml"
 
 save_path="/mnt/workspace/checkpoints/search_r1_like_grpo_sglang_qwen2.5-7b-instruct_asearcher"
 
