@@ -40,6 +40,7 @@ TOOL_CONFIG="$PROJECT_DIR/baseline/GRPO/tool_config/search_tool_simple_config.ya
 
 save_path="/mnt/workspace/checkpoints/search_r1_like_grpo_sglang_qwen2.5-3b-instruct_asearcher"
 
+sp_size=1
 
 python3 -m verl.trainer.main_ppo \
     --config-path="$CONFIG_PATH" \
@@ -47,21 +48,21 @@ python3 -m verl.trainer.main_ppo \
     algorithm.adv_estimator=grpo \
     data.train_batch_size=128 \
     data.val_batch_size=400 \
-    data.max_prompt_length=4096 \
+    data.max_prompt_length=2048 \
     data.max_response_length=20480 \
     data.filter_overlong_prompts=True \
     data.truncation='error' \
     data.return_raw_chat=True \
     trainer.default_local_dir=$save_path \
-    actor_rollout_ref.rollout.multi_turn.max_tool_response_length=10000 \
+    actor_rollout_ref.rollout.multi_turn.max_tool_response_length=23000 \
     actor_rollout_ref.model.path=Qwen/Qwen2.5-3B-Instruct\
     actor_rollout_ref.actor.optim.lr=1e-6 \
     actor_rollout_ref.actor.optim.lr_warmup_steps=10 \
     actor_rollout_ref.model.use_remove_padding=True \
-    actor_rollout_ref.actor.ppo_mini_batch_size=64 \
+    actor_rollout_ref.actor.ppo_mini_batch_size=128 \
     actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=4 \
     actor_rollout_ref.actor.use_dynamic_bsz=True \
-    actor_rollout_ref.actor.ppo_max_token_len_per_gpu=32768 \
+    actor_rollout_ref.actor.ppo_max_token_len_per_gpu=23000 \
     actor_rollout_ref.actor.use_kl_loss=False \
     actor_rollout_ref.actor.kl_loss_coef=0.001 \
     actor_rollout_ref.actor.kl_loss_type=low_var_kl \
@@ -86,11 +87,13 @@ python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.ref.log_prob_use_dynamic_bsz=True \
     actor_rollout_ref.ref.log_prob_max_token_len_per_gpu=32768 \
     actor_rollout_ref.ref.fsdp_config.param_offload=True \
+    actor_rollout_ref.actor.ulysses_sequence_parallel_size=${sp_size} \
+    actor_rollout_ref.ref.ulysses_sequence_parallel_size=${sp_size} \
     algorithm.use_kl_in_reward=False \
     trainer.critic_warmup=0 \
     trainer.val_before_train=True \
     trainer.logger='["console","wandb"]' \
-    trainer.project_name='search_r1_like_grpo_vllm' \
+    trainer.project_name='search_r1_like_grpo_sglang' \
     trainer.experiment_name='qwen2.5-3b-instruct-grpo-sglang-async-toolagent-n5-8gpu_asearcher' \
     trainer.n_gpus_per_node=4 \
     trainer.nnodes=1 \

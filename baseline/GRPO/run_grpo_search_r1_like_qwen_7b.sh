@@ -96,8 +96,8 @@ python3 -m verl.trainer.main_ppo \
     trainer.critic_warmup=0 \
     trainer.val_before_train=True \
     trainer.logger='["console","wandb"]' \
-    trainer.project_name='search_r1_like_grpo_vllm' \
-    trainer.experiment_name='qwen2.5-7b-instruct-grpo-vllm-async-toolagent-n5-8gpu_llmmatch' \
+    trainer.project_name='search_r1_like_grpo_sglang' \
+    trainer.experiment_name='qwen2.5-7b-instruct-grpo-sglang-async-toolagent-n5-8gpu_asearcher' \
     trainer.n_gpus_per_node=4 \
     trainer.nnodes=1 \
     trainer.save_freq=50 \
