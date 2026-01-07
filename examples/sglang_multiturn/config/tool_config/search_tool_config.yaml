@@ -2,8 +2,8 @@ tools:
   - class_name: verl.tools.search_tool.SearchTool
     config:
       retrieval_service_url: http://10.244.209.173:8000/retrieve
-      num_workers: 4
-      rate_limit: 4
+      num_workers: 2
+      rate_limit: 5
       timeout: 60
       enable_global_rate_limit: true
       type: native
