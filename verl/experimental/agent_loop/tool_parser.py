@@ -106,6 +106,135 @@ class HermesToolParser(ToolParser):
         return content, function_calls
 
 
+@ToolParser.register("llama")
+class LlamaToolParser(ToolParser):
+    """
+    解析 Llama 系列（如 Llama 3.x 模型）生成的工具调用。
+
+    这些模型通常会返回以 <|python_tag|> 开头、后续跟 JSON
+    对象（或对象序列，之间以分号或空白分隔）的字符串。
+    """
+
+    def __init__(self, tokenizer) -> None:
+        super().__init__(tokenizer)
+        self.bot_token = "<|python_tag|>"
+
+    @rollout_trace_op
+    async def extract_tool_calls(self, responses_ids: list[int]) -> tuple[str, list[FunctionCall]]:
+        loop = get_event_loop()
+        # 保留特殊 token，便于识别 <|python_tag|>
+        text = await loop.run_in_executor(None, lambda: self.tokenizer.decode(responses_ids, skip_special_tokens=False))
+
+        # 如果看起来不像是工具调用，直接返回原文本
+        stripped = text.lstrip()
+        if not (stripped.startswith(self.bot_token) or stripped.startswith("{") or stripped.startswith("[")):
+            return text, []
+
+        dec = json.JSONDecoder()
+        function_call_arr: list[dict] = []
+
+        try:
+            # 如果以 bot_token 开头，从它之后开始解析
+            start_idx = text.index(self.bot_token) + len(self.bot_token) if stripped.startswith(self.bot_token) else 0
+
+            while start_idx < len(text):
+                # 跳过分隔符与空白
+                remaining = text[start_idx:]
+                leading_trim = len(remaining) - len(remaining.lstrip())
+                start_idx += leading_trim
+                if start_idx >= len(text):
+                    break
+
+                obj, end_idx = dec.raw_decode(text[start_idx:])
+                # Llama 模型有时把参数写在 parameters 字段
+                if "parameters" in obj and "arguments" not in obj:
+                    obj["arguments"] = obj["parameters"]
+                function_call_arr.append(obj)
+
+                # 跳过分号/空格等分隔符，继续解析下一个对象
+                start_idx += end_idx
+                while start_idx < len(text) and text[start_idx] in " ;\n\t":
+                    start_idx += 1
+
+        except Exception as e:
+            logger.error(f"Failed to decode llama tool call: {e}")
+            return text, []
+
+        function_calls: list[FunctionCall] = []
+        for raw_function_call in function_call_arr:
+            try:
+                arguments = raw_function_call.get("arguments")
+                name = raw_function_call["name"]
+                function_calls.append(
+                    FunctionCall(name=name, arguments=json.dumps(arguments, ensure_ascii=False))
+                )
+            except Exception as e:
+                logger.error(f"Failed to decode tool call: {e}")
+
+        # 剩余文本为工具调用前的部分
+        content_prefix = text[: text.index(self.bot_token)] if stripped.startswith(self.bot_token) else ""
+
+        return content_prefix, function_calls
+
+
+@ToolParser.register("mistral")
+class MistralToolParser(ToolParser):
+    """
+    为 Mistral 7B Instruct v0.3 适配的工具调用解析器。
+
+    模型会输出形如 "[TOOL_CALLS]{...}" 的内容，arguments 可能使用
+    单引号，且可能出现 name 与 arguments/parameters 的键。
+    """
+
+    def __init__(self, tokenizer) -> None:
+        super().__init__(tokenizer)
+        self.bot_token = "[TOOL_CALLS]"
+        self.tool_call_regex = regex.compile(r"\[{.*}\]", regex.DOTALL)
+
+    @rollout_trace_op
+    async def extract_tool_calls(self, responses_ids: list[int]) -> tuple[str, list[FunctionCall]]:
+        loop = get_event_loop()
+        # 保留特殊 token 以便检测 [TOOL_CALLS]
+        text = await loop.run_in_executor(None, lambda: self.tokenizer.decode(responses_ids, skip_special_tokens=False))
+
+        # 没有工具标记则直接返回文本
+        if self.bot_token not in text:
+            return text, []
+
+        # 去掉标记，转换单引号为双引号便于 JSON 解析
+        tool_content = text.replace(self.bot_token, "").strip()
+        tool_content = tool_content.replace("'", '"')
+
+        try:
+            # 先直接解析，若失败再回退到正则提取
+            try:
+                function_call_arr = json.loads(tool_content)
+            except json.JSONDecodeError:
+                raw_tool_call = self.tool_call_regex.findall(tool_content)[0]
+                function_call_arr = json.loads(raw_tool_call)
+
+            function_calls: list[FunctionCall] = []
+            for raw_function_call in function_call_arr:
+                try:
+                    # Mistral 可能使用 parameters 代替 arguments
+                    if "parameters" in raw_function_call and "arguments" not in raw_function_call:
+                        raw_function_call["arguments"] = raw_function_call["parameters"]
+                    name = raw_function_call["name"]
+                    arguments = raw_function_call["arguments"]
+                    function_calls.append(
+                        FunctionCall(name=name, arguments=json.dumps(arguments, ensure_ascii=False))
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to decode tool call: {e}")
+
+            content_prefix = text.split(self.bot_token)[0]
+            return content_prefix if content_prefix else "", function_calls
+
+        except Exception:
+            logger.exception("Error in extracting tool call from response.")
+            return text, []
+
+
 @ToolParser.register("gpt-oss")
 class GptOssToolParser(ToolParser):
     """
