@@ -36,7 +36,7 @@ VAL_DATA="$PROJECT_DIR/data/hotpotqa_hard_train/validation.parquet"
 # Tool config path
 TOOL_CONFIG="$CONFIG_PATH/tool_config/search_tool_config.yaml"
 
-save_path="/mnt/workspace/checkpoints/search_r1_like_grpo_vllm_qwen2.5-7b-instruct_llmmatch"
+save_path="/mnt/workspace/checkpoints/search_r1_like_grpo_vllm_qwen2.5-7b-instruct_asearcher"
 
 
 python3 -m verl.trainer.main_ppo \
