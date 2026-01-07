@@ -180,6 +180,7 @@ def subem_check(prediction, golden_answers):
     return score
 
 
+    return opening_tags,
 def extract_solution(solution_str):
     """Extract the equation from the solution string."""
     # Remove everything before the first "Assistant:"
@@ -209,6 +210,11 @@ def count_answer_tags(text):
 
     return opening_tags, closing_tags
 
+def count_thinking_tags(text):
+    opening_tags = text.count("<thinking>")
+    closing_tags = text.count("</thinking>")
+
+    return opening_tags, closing_tags
 
 def compute_score(solution_str, ground_truth, method="strict", format_score=0.0, score=1.0):
     """The scoring function for exact match (EM).
@@ -257,17 +263,20 @@ def compute_score_subem(solution_str, ground_truth, method="strict", format_scor
     """
     answer = extract_solution(solution_str=solution_str)
     do_print = random.randint(1, 100) == 1
-
+    open_count, close_count = count_thinking_tags(solution_str)
     if do_print:
         print("--------------------------------")
         print(f"Solution string: {solution_str}")
         print(f"Golden answers: {ground_truth['target']}")
         print(f"Extracted answer: {answer}")
 
+    
     if answer is None:
         return 0
     else:
         if subem_check(answer, ground_truth["target"]):
-            return score
+            if (open_count < 2 or close_count < 2) and solution_str.count("<tool_response>") > 0:
+                score = score / 2
+            return max(0, score)
         else:
             return format_score
