@@ -52,7 +52,7 @@ python3 -m verl.trainer.main_ppo \
     data.return_raw_chat=True \
     trainer.default_local_dir=$save_path \
     actor_rollout_ref.rollout.multi_turn.max_tool_response_length=10000 \
-    actor_rollout_ref.model.path=/model/14B \
+    actor_rollout_ref.model.path=Qwen/Qwen2.5-14B-Instruct \
     actor_rollout_ref.actor.optim.lr=1e-6 \
     actor_rollout_ref.actor.optim.lr_warmup_steps=2 \
     actor_rollout_ref.model.use_remove_padding=True \
