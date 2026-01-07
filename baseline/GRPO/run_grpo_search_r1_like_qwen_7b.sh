@@ -13,13 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# GRPO training script for search-r1like experiment
-# Uses vLLM with async mode and tool_agent for multi-turn tool calling
-# Model: Qwen2.5-7B-Instruct, 4 GPUs (0-3)
-# Usage: bash baseline/GRPO/run_grpo_search_r1_like.sh
-
-# Use the first 4 GPUs (GPU 0-3)
-# export CUDA_VISIBLE_DEVICES=0,1,2,3
 
 set -x
 
@@ -60,7 +53,7 @@ python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.rollout.multi_turn.max_tool_response_length=10000 \
     actor_rollout_ref.model.path=Qwen/Qwen2.5-7B-Instruct\
     actor_rollout_ref.actor.optim.lr=1e-6 \
-    actor_rollout_ref.actor.optim.lr_warmup_steps=10 \
+    actor_rollout_ref.actor.optim.lr_warmup_steps=2 \
     actor_rollout_ref.model.use_remove_padding=True \
     actor_rollout_ref.actor.ppo_mini_batch_size=64 \
     actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=4 \
