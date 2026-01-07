@@ -30,7 +30,8 @@ PROJECT_DIR="$(pwd)"
 CONFIG_PATH="$PROJECT_DIR/examples/sglang_multiturn/config"
 
 # Data paths
-TRAIN_DATA="$PROJECT_DIR/data/hotpotqa_hard_train/train.parquet"
+# TRAIN_DATA="$PROJECT_DIR/data/hotpotqa_hard_train/train.parquet"
+TRAIN_DATA="$PROJECT_DIR/data/asearcher_train/train.parquet"
 VAL_DATA="$PROJECT_DIR/data/hotpotqa_hard_train/validation.parquet"
 # Tool config path
 TOOL_CONFIG="$CONFIG_PATH/tool_config/search_tool_config.yaml"
