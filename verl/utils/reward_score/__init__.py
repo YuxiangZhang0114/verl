@@ -106,7 +106,7 @@ def default_compute_score(
     elif data_source in ["ASearcher"]:
         from . import search_r1_like_qa_em
 
-        res = search_r1_like_qa_em.compute_score_subem(solution_str, ground_truth)
+        res = search_r1_like_qa_em.compute_score_asearcher_with_thinking(solution_str, ground_truth)
     else:
         raise NotImplementedError(f"Reward function is not implemented for {data_source=}")
 

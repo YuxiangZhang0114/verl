@@ -174,7 +174,7 @@ def subem_check(prediction, golden_answers):
     score = 0
     for golden_answer in golden_answers:
         golden_answer = normalize_answer(golden_answer)
-        if golden_answer in normalized_prediction and len(golden_answer) < len(normalized_prediction)*2:
+        if golden_answer in normalized_prediction and len(normalized_prediction) < len(golden_answer)*2:
             score = 1
             break
     return score
@@ -251,7 +251,7 @@ def compute_score(solution_str, ground_truth, method="strict", format_score=0.0,
             return format_score
 
 
-def compute_score_subem(solution_str, ground_truth, method="strict", format_score=0.0, score=1.0):
+def compute_score_asearcher_with_thinking(solution_str, ground_truth, method="strict", format_score=0.0, score=1.0):
     """The scoring function for substring exact match (EM).
 
     Args:
