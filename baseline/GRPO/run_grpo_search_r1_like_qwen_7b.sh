@@ -93,7 +93,7 @@ python3 -m verl.trainer.main_ppo \
     trainer.experiment_name='qwen2.5-7b-instruct-grpo-sglang-async-toolagent-n5-8gpu_asearcher' \
     trainer.n_gpus_per_node=4 \
     trainer.nnodes=1 \
-    trainer.save_freq=50 \
+    trainer.save_freq=80 \
     trainer.test_freq=10 \
     trainer.log_val_generations=40 \
     data.train_files="$TRAIN_DATA" \

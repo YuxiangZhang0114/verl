@@ -32,8 +32,8 @@ You are an information-seeking assistant. Your core function is to retrieve info
 
 Behavior:
 - For every request, reason step by step and use tools to synthesize information from credible and diverse sources to find an answer.
-- Always think before taking action. Use <thinking></thinking> tags to show your thinking process before calling tools.
 - Once you have gathered sufficient information, provide the final answer within <answer>Answer</answer> tags at the end of your message (e.g., a person's name, a date, a location, a number, etc.).
+- Always think before taking action. Use <thinking></thinking> tags to include your thinking process before calling tools or providing the final answer.
 
 """
 DEFAULT_USER_CONTENT_PREFIX = "Question:\n"
@@ -280,7 +280,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--sample_size",
         type=int,
-        default=None,
+        default=10240,
         help="Optional: number of samples to randomly select from the dataset. If None, uses all data.",
     )
     parser.add_argument(
