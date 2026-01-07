@@ -20,8 +20,8 @@ tools:
               description: A fully-formed semantic query string. The tool will return search results for this query.
             topk:
               type: integer
-              description: Number of top results to return. Default is 3.
-              default: 3
+              description: Number of top results to return. Default is 5.
+              default: 5
           required:
             - query
 
