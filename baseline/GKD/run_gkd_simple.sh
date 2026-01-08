@@ -86,7 +86,6 @@ function now() {
 
 # Run GKD training with hybrid engine mode
 python3 -m verl.trainer.main_gkd \
-    --config-path="verl/trainer/config" \
     --config-name=gkd_trainer \
     data.train_files="$TRAIN_DATA" \
     data.val_files="$VAL_DATA" \
