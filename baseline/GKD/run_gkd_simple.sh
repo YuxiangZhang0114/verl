@@ -131,7 +131,7 @@ python3 -m verl.trainer.main_gkd \
     actor_rollout_ref.rollout.multi_turn.tool_config_path="$TOOL_CONFIG" \
     actor_rollout_ref.rollout.agent.default_agent_loop=tool_agent \
     actor_rollout_ref.rollout.agent.num_workers=1 \
-    algorithm.adv_estimator=gae \
+    algorithm.adv_estimator=grpo \
     algorithm.use_kl_in_reward=False \
     gkd.enable_teacher=true \
     gkd.teacher_ip=$TEACHER_SERVER_HOST \
