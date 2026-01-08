@@ -92,7 +92,7 @@ python3 -m verl.trainer.main_gkd \
     data.prompt_key=prompt \
     data.train_batch_size=128 \
     data.val_batch_size=400 \
-    data.max_prompt_length=4096 \
+    data.max_prompt_length=3000 \
     data.max_response_length=20480 \
     data.filter_overlong_prompts=True \
     data.truncation='error' \
@@ -109,7 +109,7 @@ python3 -m verl.trainer.main_gkd \
     actor_rollout_ref.actor.ppo_mini_batch_size=64 \
     actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=4 \
     actor_rollout_ref.actor.use_dynamic_bsz=True \
-    actor_rollout_ref.actor.ppo_max_token_len_per_gpu=23000 \
+    actor_rollout_ref.actor.ppo_max_token_len_per_gpu=24000 \
     actor_rollout_ref.actor.ppo_epochs=1 \
     actor_rollout_ref.actor.entropy_coeff=0.0 \
     actor_rollout_ref.actor.use_kl_loss=False \
