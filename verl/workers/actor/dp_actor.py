@@ -565,10 +565,10 @@ class DataParallelPPOActor(BasePPOActor):
                             )
                             student_logits = output.logits  # [batch_size, seq_len, vocab_size]
                         
-                        # Get GKD config from self.config
-                        distill_loss_coef = getattr(self.config, "distill_loss_coef", 1.0)
-                        distill_loss_type = getattr(self.config, "distill_loss_type", "forward_kl")
-                        distill_temperature = getattr(self.config, "distill_temperature", 1.0)
+                        # Get GKD config from meta_info (passed from trainer)
+                        distill_loss_coef = micro_batch.meta_info.get("gkd_distill_loss_coef", 1.0)
+                        distill_loss_type = micro_batch.meta_info.get("gkd_distill_loss_type", "forward_kl")
+                        distill_temperature = micro_batch.meta_info.get("gkd_distill_temperature", 1.0)
                         
                         # Compute distillation loss
                         distill_loss = compute_fsdp_kl_divergence(

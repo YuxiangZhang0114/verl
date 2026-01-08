@@ -252,5 +252,10 @@ class RayGKDTrainer(RayPPOTrainer):
             batch.meta_info["pure_distillation"] = False
             batch.meta_info["use_rl_loss"] = True
         
+        # Pass GKD config to actor worker via meta_info
+        batch.meta_info["gkd_distill_loss_coef"] = self.config.gkd.get("distill_loss_coef", 1.0)
+        batch.meta_info["gkd_distill_loss_type"] = self.config.gkd.get("distill_loss_type", "forward_kl")
+        batch.meta_info["gkd_distill_temperature"] = self.config.gkd.get("distill_temperature", 1.0)
+        
         # Call parent class's update_actor (which will handle distillation in worker)
         return super()._update_actor(batch)

@@ -115,9 +115,6 @@ python3 -m verl.trainer.main_gkd \
     actor_rollout_ref.actor.use_kl_loss=False \
     actor_rollout_ref.actor.fsdp_config.param_offload=True \
     actor_rollout_ref.actor.fsdp_config.optimizer_offload=True \
-    actor_rollout_ref.actor.distill_loss_coef=1.0 \
-    actor_rollout_ref.actor.distill_loss_type=forward_kl \
-    actor_rollout_ref.actor.distill_temperature=1.0 \
     actor_rollout_ref.rollout.name=sglang \
     actor_rollout_ref.rollout.mode=async \
     actor_rollout_ref.rollout.n=1 \
