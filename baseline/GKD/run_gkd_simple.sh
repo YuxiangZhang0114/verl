@@ -54,7 +54,7 @@ save_path="/mnt/workspace/checkpoints/qwen3_4b_gkd_simple"
 
 # GPU configuration - using hybrid engine mode (actor and rollout share GPU pool)
 NODES=1
-N_GPUS_PER_NODE=6  # All 6 GPUs in shared pool
+N_GPUS_PER_NODE=4  # All 6 GPUs in shared pool
 
 # Teacher server configuration
 TEACHER_SERVER_HOST=127.0.0.1
