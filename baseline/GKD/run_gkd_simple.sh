@@ -153,5 +153,4 @@ python3 -m verl.trainer.main_gkd \
     trainer.test_freq=10 \
     trainer.log_val_generations=40 \
     trainer.val_before_train=True \
-    trainer.total_epochs=2 \
-    trainer.recipe_gkd_path="$PROJECT_DIR/recipe/gkd" "$@"
+    trainer.total_epochs=2 "$@"

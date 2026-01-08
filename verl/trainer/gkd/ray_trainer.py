@@ -99,12 +99,8 @@ class RayGKDTrainer(RayPPOTrainer):
         
         if self.use_teacher:
             # Import teacher client from recipe/gkd
-            sys.path.insert(0, str(self.config.trainer.get("recipe_gkd_path", "recipe/gkd")))
-            try:
-                from teacher.client import TeacherClient
-            except ImportError:
-                # Fallback to absolute import
-                from recipe.gkd.teacher.client import TeacherClient
+            # Direct import works since recipe/gkd is in the project
+            from recipe.gkd.teacher.client import TeacherClient
             
             self.teacher_client = TeacherClient(
                 server_ip=config.gkd.teacher_ip,
