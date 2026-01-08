@@ -83,6 +83,7 @@ python3 -m recipe.gkd.main_gkd \
     --config-name=on_policy_distill_trainer \
     data.train_files="$TRAIN_DATA" \
     data.val_files="$VAL_DATA" \
+    data.prompt_key=prompt \
     data.train_batch_size=128 \
     data.val_batch_size=400 \
     data.max_prompt_length=4096 \
