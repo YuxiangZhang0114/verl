@@ -101,6 +101,7 @@ python3 -m recipe.gkd.main_gkd \
     actor_rollout_ref.actor.megatron.tensor_model_parallel_size=$TP \
     actor_rollout_ref.actor.megatron.use_distributed_optimizer=True \
     actor_rollout_ref.actor.megatron.use_dist_checkpointing=False \
+    actor_rollout_ref.actor.router_replay.mode=disabled \
     actor_rollout_ref.actor.optim.lr=1e-6 \
     actor_rollout_ref.actor.optim.lr_warmup_steps=0 \
     actor_rollout_ref.actor.micro_batch_size=4 \
