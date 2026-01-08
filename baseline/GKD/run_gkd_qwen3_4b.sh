@@ -31,6 +31,7 @@ PROJECT_DIR="$(pwd)"
 
 # Model path - Qwen3-4B-Instruct (Student)
 HF_MODEL_PATH="Qwen/Qwen3-4B-Instruct-2507"
+export WANDB_API_KEY="0559d52399bc5d3fd8e373bb4b8b6e8db054b9f7"
 
 # Data paths
 TRAIN_DATA="$PROJECT_DIR/data/asearcher_train/train.parquet"
