@@ -105,6 +105,8 @@ python3 -m recipe.gkd.main_gkd \
     actor_rollout_ref.actor.optim.lr=1e-6 \
     actor_rollout_ref.actor.optim.lr_warmup_steps=0 \
     actor_rollout_ref.actor.micro_batch_size=4 \
+    +actor_rollout_ref.actor.ppo_mini_batch_size=64 \
+    +actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=4 \
     actor_rollout_ref.actor.use_dynamic_bsz=True \
     actor_rollout_ref.actor.max_token_len=23000 \
     actor_rollout_ref.actor.use_torch_compile=False \
