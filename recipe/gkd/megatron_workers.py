@@ -458,7 +458,7 @@ class MegatronOnPolicyDistillActorWorker(ActorRolloutRefWorker):
             generator = self.bridge.export_weights(self.actor.actor_module)
         else:
             # from verl.utils.megatron_utils import per_tensor_generator
-            from megatron_utils import per_tensor_generator
+            from .megatron_utils import per_tensor_generator
 
             from verl.models.mcore import get_mcore_weight_converter
 
