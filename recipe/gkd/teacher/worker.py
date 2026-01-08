@@ -18,7 +18,7 @@ import functools
 import torch
 import zmq
 from codetiming import Timer
-from utils import deserialize, serialize
+from .utils import deserialize, serialize
 
 
 def main():

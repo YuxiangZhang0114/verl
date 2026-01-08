@@ -15,7 +15,7 @@
 import random
 
 import torch
-from teacher import TeacherClient
+from recipe.gkd.teacher import TeacherClient
 
 
 def main():

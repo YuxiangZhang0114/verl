@@ -25,7 +25,7 @@ from codetiming import Timer
 try:
     from .utils import deserialize, serialize
 except ImportError:
-    from utils import deserialize, serialize
+    from .utils import deserialize, serialize
 
 DEBUG = False
 

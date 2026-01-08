@@ -145,7 +145,7 @@ def get_teacher_knowledge(batch: DataProto, teacher_client, n_server_workers=1, 
 
 if __name__ == "__main__":
     batch = DataProto.load_from_disk("gen_batch_output")
-    from teacher import TeacherClient
+    from recipe.gkd.teacher import TeacherClient
 
     teacher_client = TeacherClient(server_ip="10.215.192.141", server_port=15555)
     output_batch = get_teacher_knowledge(batch, 2, teacher_client)
