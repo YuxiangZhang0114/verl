@@ -355,7 +355,11 @@ class DataParallelPPOActor(BasePPOActor):
         self.actor_module.eval()
 
         micro_batch_size = data.meta_info["micro_batch_size"]
-        temperature = data.meta_info["temperature"]  # temperature must be in the data.meta_info to avoid silent error
+        # Some trainers may forget to attach temperature; default to 1.0 and warn.
+        temperature = data.meta_info.get("temperature", None)
+        if temperature is None:
+            logger.warning("[dp_actor] Missing meta_info['temperature']; defaulting to 1.0")
+            temperature = 1.0
         use_dynamic_bsz = data.meta_info["use_dynamic_bsz"]
         has_multi_modal_inputs = "multi_modal_inputs" in data.non_tensor_batch.keys()
         select_keys = ["responses", "input_ids", "attention_mask", "position_ids"]

@@ -1362,7 +1362,9 @@ class RayPPOTrainer:
                         else:
                             gen_batch_output = self.async_rollout_manager.generate_sequences(gen_batch_output)
 
-                        timing_raw.update(gen_batch_output.meta_info["timing"])
+                        # Some rollout backends may not attach timing info.
+                        # Don't crash training if it's missing.
+                        timing_raw.update(gen_batch_output.meta_info.get("timing", {}))
                         gen_batch_output.meta_info.pop("timing", None)
 
                     if self.config.algorithm.adv_estimator == AdvantageEstimator.REMAX:
@@ -1542,7 +1544,8 @@ class RayPPOTrainer:
                     if self.use_critic:
                         with marked_timer("update_critic", timing_raw, color="pink"):
                             critic_output = self._update_critic(batch)
-                        critic_output_metrics = reduce_metrics(critic_output.meta_info["metrics"])
+                        # Be robust to workers that don't return metrics in meta_info.
+                        critic_output_metrics = reduce_metrics(critic_output.meta_info.get("metrics", {}))
                         metrics.update(critic_output_metrics)
 
                     # implement critic warmup
@@ -1550,7 +1553,8 @@ class RayPPOTrainer:
                         # update actor
                         with marked_timer("update_actor", timing_raw, color="red"):
                             actor_output = self._update_actor(batch)
-                        actor_output_metrics = reduce_metrics(actor_output.meta_info["metrics"])
+                        # Be robust to workers that don't return metrics in meta_info.
+                        actor_output_metrics = reduce_metrics(actor_output.meta_info.get("metrics", {}))
                         metrics.update(actor_output_metrics)
 
                     # Log rollout generations if enabled

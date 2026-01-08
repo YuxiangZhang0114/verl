@@ -918,7 +918,13 @@ class ActorRolloutRefWorker(Worker, DistProfilerExtension):
             with Timer(name="update_policy", logger=None) as timer:
                 metrics = self.actor.update_policy(data=data)
             delta_time = timer.last
-            global_num_tokens = data.meta_info["global_token_num"]
+            # Some trainers may not set this field; fall back to computing from attention_mask.
+            global_num_tokens = data.meta_info.get("global_token_num", None)
+            if global_num_tokens is None:
+                try:
+                    global_num_tokens = torch.sum(data.batch["attention_mask"], dim=-1).tolist()
+                except Exception as e:
+                    raise KeyError("global_token_num") from e
             estimated_flops, promised_flops = self.flops_counter.estimate_flops(global_num_tokens, delta_time)
             metrics["perf/mfu/actor"] = (
                 estimated_flops * self.config.actor.ppo_epochs / promised_flops / self.world_size
