@@ -400,6 +400,10 @@ class DataParallelPPOActor(BasePPOActor):
         self.actor_module.train()
 
         temperature = data.meta_info["temperature"]  # temperature must be in the data.meta_info to avoid silent error
+        
+        # Check if using RL loss or pure distillation mode
+        use_rl_loss = data.meta_info.get("use_rl_loss", True)
+        pure_distillation = data.meta_info.get("pure_distillation", False)
 
         select_keys = [
             "responses",
@@ -493,37 +497,44 @@ class DataParallelPPOActor(BasePPOActor):
                     # Weights are computed centrally in trainer and added when algorithm.rollout_is=True
                     rollout_is_weights = model_inputs.get("rollout_is_weights", None)
 
-                    # gpg -> verl.trainer.ppo.core_algos.compute_policy_loss_gpg
-                    # clip_cov -> verl.trainer.ppo.core_algos.compute_policy_loss_clip_cov
-                    policy_loss_fn = get_policy_loss_fn(loss_mode)
+                    # Compute policy loss (RL loss) only if use_rl_loss is enabled
+                    if use_rl_loss and not pure_distillation:
+                        # gpg -> verl.trainer.ppo.core_algos.compute_policy_loss_gpg
+                        # clip_cov -> verl.trainer.ppo.core_algos.compute_policy_loss_clip_cov
+                        policy_loss_fn = get_policy_loss_fn(loss_mode)
 
-                    # Compute policy loss (any function is expected to return 2 values)
-                    pg_loss, pg_metrics = policy_loss_fn(
-                        old_log_prob=old_log_prob,
-                        log_prob=log_prob,
-                        advantages=advantages,
-                        response_mask=response_mask,
-                        loss_agg_mode=loss_agg_mode,
-                        config=self.config,
-                        rollout_is_weights=rollout_is_weights,
-                    )
-                    micro_batch_metrics.update(pg_metrics)
-
-                    # Skip if using bypass_mode loss (metrics already computed in pg_metrics)
-                    rollout_log_prob = model_inputs.get("rollout_log_probs", None)
-                    if loss_mode != "bypass_mode" and rollout_log_prob is not None:
-                        # Compute metrics using CURRENT policy π_θ vs π_rollout
-                        # Tracks evolving off-policy gap as π_θ updates during mini-batch training
-                        from verl.trainer.ppo.rollout_corr_helper import compute_rollout_corr_metrics_from_logprobs
-
-                        rollout_corr_metrics = compute_rollout_corr_metrics_from_logprobs(
+                        # Compute policy loss (any function is expected to return 2 values)
+                        pg_loss, pg_metrics = policy_loss_fn(
+                            old_log_prob=old_log_prob,
                             log_prob=log_prob,
-                            rollout_log_prob=rollout_log_prob,
+                            advantages=advantages,
                             response_mask=response_mask,
+                            loss_agg_mode=loss_agg_mode,
+                            config=self.config,
+                            rollout_is_weights=rollout_is_weights,
                         )
-                        micro_batch_metrics.update(rollout_corr_metrics)
+                        micro_batch_metrics.update(pg_metrics)
 
-                    policy_loss = pg_loss
+                        # Skip if using bypass_mode loss (metrics already computed in pg_metrics)
+                        rollout_log_prob = model_inputs.get("rollout_log_probs", None)
+                        if loss_mode != "bypass_mode" and rollout_log_prob is not None:
+                            # Compute metrics using CURRENT policy π_θ vs π_rollout
+                            # Tracks evolving off-policy gap as π_θ updates during mini-batch training
+                            from verl.trainer.ppo.rollout_corr_helper import compute_rollout_corr_metrics_from_logprobs
+
+                            rollout_corr_metrics = compute_rollout_corr_metrics_from_logprobs(
+                                log_prob=log_prob,
+                                rollout_log_prob=rollout_log_prob,
+                                response_mask=response_mask,
+                            )
+                            micro_batch_metrics.update(rollout_corr_metrics)
+
+                        policy_loss = pg_loss
+                    else:
+                        # Pure distillation mode: no policy loss
+                        pg_loss = torch.tensor(0.0, device=get_device_id(), dtype=self.param_dtype)
+                        policy_loss = torch.tensor(0.0, device=get_device_id(), dtype=self.param_dtype)
+                        micro_batch_metrics["actor/pg_loss"] = 0.0
                     if calculate_entropy and entropy is not None:
                         entropy_agg = agg_loss(loss_mat=entropy, loss_mask=response_mask, loss_agg_mode=loss_agg_mode)
                         micro_batch_metrics["actor/entropy"] = entropy_agg.detach().item()
@@ -573,6 +584,12 @@ class DataParallelPPOActor(BasePPOActor):
                         policy_loss = policy_loss + distill_loss * distill_loss_coef
                         metrics["actor/distill_loss"] = metrics.get("actor/distill_loss", 0.0) + distill_loss.detach().item() * loss_scale_factor
                         micro_batch_metrics["actor/distill_coef"] = distill_loss_coef
+                    elif pure_distillation:
+                        # Pure distillation mode but no teacher knowledge - this is an error
+                        raise RuntimeError(
+                            "[GKD] Pure distillation mode enabled (use_rl_loss=false) but no teacher knowledge found! "
+                            "Make sure teacher server is running and gkd.enable_teacher=true"
+                        )
 
                     if self.config.use_kl_loss:
                         ref_log_prob = model_inputs["ref_log_prob"]

@@ -59,9 +59,13 @@ gkd:
   distill_temperature: 1.0
 
   # Whether to use RL loss in addition to distillation
+  # false: Pure distillation mode - total_loss = distill_loss * distill_loss_coef
+  # true: Hybrid mode - total_loss = pg_loss * rl_loss_coef + distill_loss * distill_loss_coef
+  # Note: When use_rl_loss=false, rollout.n should be 1 (no need for multiple candidates)
   use_rl_loss: false
 
   # Coefficient for RL loss (only used if use_rl_loss is true)
+  # Recommended values: 0.01 - 0.1 when combining with distillation
   rl_loss_coef: 0.0
 
 # Override actor configuration for GKD
@@ -69,6 +73,13 @@ actor_rollout_ref:
 
   # Use hybrid engine mode (actor and rollout share GPU pool)
   hybrid_engine: true
+
+  rollout:
+
+    # Number of rollouts per prompt
+    # n=1 for pure distillation mode (single trajectory per prompt)
+    # n>1 (e.g., 5) for RL+distillation mode (multiple trajectories for advantage estimation)
+    n: 1
 
   actor:
 
@@ -84,13 +95,17 @@ actor_rollout_ref:
 # Override algorithm configuration for GKD
 algorithm:
 
-  # Advantage estimator (use "gae" for RL loss, doesn't matter for pure distillation)
+  # Advantage estimator type
+  # "gae" for standard PPO/GAE (default)
+  # "grpo" for GRPO (Group Relative Policy Optimization)
+  # Note: Even in pure distillation mode (use_rl_loss=false), this is required
+  #       because PPO trainer always computes advantages, though they won't be used in loss
   adv_estimator: gae
 
-  # Discount factor
+  # Discount factor for reward computation
   gamma: 1.0
 
-  # GAE lambda
+  # GAE lambda parameter
   lam: 1.0
 
   # Whether to use KL penalty in reward (usually false for GKD)

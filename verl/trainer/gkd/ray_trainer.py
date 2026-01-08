@@ -226,5 +226,31 @@ class RayGKDTrainer(RayPPOTrainer):
                 else:
                     print(f"[GKD] WARNING: Teacher knowledge retrieval failed, proceeding without distillation")
         
+        # Check if we should use RL loss (for pure distillation mode)
+        use_rl_loss = self.config.gkd.get("use_rl_loss", False)
+        
+        if not use_rl_loss:
+            # Pure distillation mode: add dummy advantages and old_log_probs
+            # This ensures the actor worker receives the required fields but ignores RL loss
+            print("[GKD] Pure distillation mode: skipping RL loss computation")
+            
+            # Add dummy old_log_probs and advantages (all zeros)
+            if "old_log_probs" not in batch.batch:
+                batch.batch["old_log_probs"] = torch.zeros_like(
+                    batch.batch["attention_mask"], dtype=torch.float32
+                )
+            if "advantages" not in batch.batch:
+                batch.batch["advantages"] = torch.zeros_like(
+                    batch.batch["attention_mask"], dtype=torch.float32
+                )
+            
+            # Mark as pure distillation in meta_info
+            batch.meta_info["pure_distillation"] = True
+            batch.meta_info["use_rl_loss"] = False
+        else:
+            # RL + distillation mode: ensure advantages are computed by parent trainer
+            batch.meta_info["pure_distillation"] = False
+            batch.meta_info["use_rl_loss"] = True
+        
         # Call parent class's update_actor (which will handle distillation in worker)
         return super()._update_actor(batch)

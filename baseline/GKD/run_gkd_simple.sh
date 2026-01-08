@@ -121,6 +121,7 @@ python3 -m verl.trainer.main_gkd \
     actor_rollout_ref.actor.distill_temperature=1.0 \
     actor_rollout_ref.rollout.name=sglang \
     actor_rollout_ref.rollout.mode=async \
+    actor_rollout_ref.rollout.n=1 \
     actor_rollout_ref.rollout.gpu_memory_utilization=0.6 \
     actor_rollout_ref.rollout.temperature=1.0 \
     actor_rollout_ref.rollout.top_p=0.99 \
@@ -134,6 +135,8 @@ python3 -m verl.trainer.main_gkd \
     actor_rollout_ref.rollout.multi_turn.tool_config_path="$TOOL_CONFIG" \
     actor_rollout_ref.rollout.agent.default_agent_loop=tool_agent \
     actor_rollout_ref.rollout.agent.num_workers=1 \
+    algorithm.adv_estimator=gae \
+    algorithm.use_kl_in_reward=False \
     gkd.enable_teacher=true \
     gkd.teacher_ip=$TEACHER_SERVER_HOST \
     gkd.teacher_port=$TEACHER_SERVER_PORT \
