@@ -36,6 +36,8 @@ export WANDB_API_KEY="0559d52399bc5d3fd8e373bb4b8b6e8db054b9f7"
 # Data paths
 TRAIN_DATA="$PROJECT_DIR/data/asearcher_train/train.parquet"
 VAL_DATA="$PROJECT_DIR/data/hotpotqa_hard_train/validation.parquet"
+# Tool config path
+TOOL_CONFIG="$PROJECT_DIR/baseline/GRPO/tool_config/search_tool_simple_config.yaml"
 
 # Save path
 save_path="/mnt/workspace/checkpoints/qwen3_4b_gkd_distill_asearcher"
@@ -106,17 +108,21 @@ python3 -m recipe.gkd.main_gkd \
     actor_rollout_ref.actor.use_torch_compile=False \
     actor_rollout_ref.actor.checkpoint.save_contents=['model','optimizer','extra'] \
     actor_rollout_ref.actor.checkpoint.load_contents=[] \
-    actor_rollout_ref.rollout.name=vllm \
-    actor_rollout_ref.rollout.mode=sync \
+    actor_rollout_ref.rollout.name=sglang \
+    actor_rollout_ref.rollout.mode=async \
     actor_rollout_ref.rollout.gpu_memory_utilization=0.6 \
     actor_rollout_ref.rollout.temperature=1.0 \
     actor_rollout_ref.rollout.top_p=0.99 \
     actor_rollout_ref.rollout.top_k=-1 \
-    actor_rollout_ref.rollout.enable_chunked_prefill=True \
-    actor_rollout_ref.rollout.enforce_eager=False \
     actor_rollout_ref.rollout.tensor_model_parallel_size=$INFER_TP \
     actor_rollout_ref.rollout.max_model_len=32768 \
     actor_rollout_ref.rollout.load_format='dummy_megatron' \
+    actor_rollout_ref.rollout.multi_turn.enable=True \
+    actor_rollout_ref.rollout.multi_turn.max_assistant_turns=16 \
+    actor_rollout_ref.rollout.multi_turn.format=hermes \
+    actor_rollout_ref.rollout.multi_turn.max_tool_response_length=10000 \
+    actor_rollout_ref.rollout.multi_turn.tool_config_path="$TOOL_CONFIG" \
+    actor_rollout_ref.rollout.agent.default_agent_loop=tool_agent \
     actor_rollout_ref.rollout.agent.num_workers=1 \
     actor_rollout_ref.teacher.server_ip=$TEACHER_SERVER_HOST \
     actor_rollout_ref.teacher.server_port=$TEACHER_SERVER_PORT \
