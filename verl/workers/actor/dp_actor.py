@@ -422,6 +422,11 @@ class DataParallelPPOActor(BasePPOActor):
 
         has_multi_modal_inputs = "multi_modal_inputs" in data.non_tensor_batch.keys()
         non_tensor_select_keys = ["multi_modal_inputs"] if has_multi_modal_inputs else []
+        
+        # Include teacher knowledge for GKD distillation
+        has_teacher_knowledge = "teacher_topk_logps" in data.non_tensor_batch.keys()
+        if has_teacher_knowledge:
+            non_tensor_select_keys.extend(["teacher_topk_logps", "teacher_topk_indices"])
 
         data = data.select(batch_keys=select_keys, non_tensor_batch_keys=non_tensor_select_keys)
 
@@ -434,6 +439,7 @@ class DataParallelPPOActor(BasePPOActor):
         metrics = {
             "actor/pg_loss": 0.0,
             "actor/kl_loss": 0.0,
+            "actor/distill_loss": 0.0,
         }
         for _ in range(self.config.ppo_epochs):
             for batch_idx, mini_batch in enumerate(mini_batches):
@@ -523,6 +529,50 @@ class DataParallelPPOActor(BasePPOActor):
                         micro_batch_metrics["actor/entropy"] = entropy_agg.detach().item()
                         if entropy_coeff != 0:
                             policy_loss -= entropy_agg * entropy_coeff
+
+                    # GKD: Add distillation loss if teacher knowledge is present
+                    if has_teacher_knowledge:
+                        # Import distillation loss function
+                        from verl.trainer.gkd.distill_loss import compute_fsdp_kl_divergence
+                        
+                        # Get teacher knowledge from non_tensor_batch
+                        teacher_topk_logps = torch.from_numpy(
+                            micro_batch.non_tensor_batch["teacher_topk_logps"]
+                        ).to(get_device_id())
+                        teacher_topk_indices = torch.from_numpy(
+                            micro_batch.non_tensor_batch["teacher_topk_indices"]
+                        ).to(get_device_id())
+                        
+                        # Get student logits from forward pass
+                        # We need to recompute forward to get logits (log_prob only gives us selected token probs)
+                        with torch.autocast(device_type=self.device_name, dtype=self.param_dtype):
+                            output = self.actor_module(
+                                input_ids=model_inputs["input_ids"],
+                                attention_mask=model_inputs["attention_mask"],
+                                position_ids=model_inputs["position_ids"],
+                                use_cache=False,
+                            )
+                            student_logits = output.logits  # [batch_size, seq_len, vocab_size]
+                        
+                        # Get GKD config from self.config
+                        distill_loss_coef = getattr(self.config, "distill_loss_coef", 1.0)
+                        distill_loss_type = getattr(self.config, "distill_loss_type", "forward_kl")
+                        distill_temperature = getattr(self.config, "distill_temperature", 1.0)
+                        
+                        # Compute distillation loss
+                        distill_loss = compute_fsdp_kl_divergence(
+                            student_logits=student_logits,
+                            teacher_topk_logps=teacher_topk_logps,
+                            teacher_topk_indices=teacher_topk_indices,
+                            response_mask=response_mask,
+                            temperature=distill_temperature,
+                            loss_type=distill_loss_type,
+                        )
+                        
+                        # Add distillation loss to policy loss
+                        policy_loss = policy_loss + distill_loss * distill_loss_coef
+                        metrics["actor/distill_loss"] = metrics.get("actor/distill_loss", 0.0) + distill_loss.detach().item() * loss_scale_factor
+                        micro_batch_metrics["actor/distill_coef"] = distill_loss_coef
 
                     if self.config.use_kl_loss:
                         ref_log_prob = model_inputs["ref_log_prob"]

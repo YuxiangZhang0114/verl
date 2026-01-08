@@ -1,0 +1,121 @@
+# Format checks enforced on CI:
+# 1. Comments must appear above each field.
+# 2. There must be a blank line between each field.
+# 3. Inline comments (after a field on the same line) are not allowed.
+# 4. Indentation level is respected for nested fields.
+
+# GKD Trainer Configuration
+# Inherits from ppo_trainer.yaml and adds GKD-specific parameters
+
+# specify the default per-component configs
+defaults:
+
+  # Inherit all defaults from PPO trainer
+  - ppo_trainer
+
+  # Override with GKD-specific settings
+  - _self_
+
+# GKD-specific configuration
+gkd:
+
+  # Whether to enable teacher model for distillation
+  enable_teacher: true
+
+  # Teacher server IP address
+  teacher_ip: "127.0.0.1"
+
+  # Teacher server port
+  teacher_port: 15555
+
+  # Number of top-k logits to use from teacher
+  teacher_topk: 256
+
+  # Number of microbatches for teacher inference
+  teacher_num_microbatches: 1
+
+  # Max tokens to generate from teacher (usually 1 for distillation)
+  teacher_max_tokens: 1
+
+  # Number of parallel server workers
+  teacher_n_server_workers: 1
+
+  # Temperature for teacher model
+  teacher_temperature: 1.0
+
+  # Whether to only get response logits (not full sequence)
+  teacher_only_response: false
+
+  # Coefficient for distillation loss
+  distill_loss_coef: 1.0
+
+  # Type of distillation loss: "forward_kl", "reverse_kl", or "jsd"
+  # forward_kl: KL(teacher||student) - encourages student to cover all teacher modes
+  # reverse_kl: KL(student||teacher) - encourages student to focus on main teacher modes
+  # jsd: Jensen-Shannon Divergence - symmetric, balanced approach
+  distill_loss_type: "forward_kl"
+
+  # Temperature for distillation (applied to student logits)
+  distill_temperature: 1.0
+
+  # Whether to use RL loss in addition to distillation
+  use_rl_loss: false
+
+  # Coefficient for RL loss (only used if use_rl_loss is true)
+  rl_loss_coef: 0.0
+
+# Override actor configuration for GKD
+actor_rollout_ref:
+
+  # Use hybrid engine mode (actor and rollout share GPU pool)
+  hybrid_engine: true
+
+  actor:
+
+    # GKD typically uses 1 epoch since we do on-policy distillation
+    ppo_epochs: 1
+
+    # Entropy coefficient (usually 0 for pure distillation)
+    entropy_coeff: 0.0
+
+    # Whether to use KL loss against reference model (usually false for GKD)
+    use_kl_loss: false
+
+# Override algorithm configuration for GKD
+algorithm:
+
+  # Advantage estimator (use "gae" for RL loss, doesn't matter for pure distillation)
+  adv_estimator: gae
+
+  # Discount factor
+  gamma: 1.0
+
+  # GAE lambda
+  lam: 1.0
+
+  # Whether to use KL penalty in reward (usually false for GKD)
+  use_kl_in_reward: false
+
+# Override trainer configuration for GKD
+trainer:
+
+  # Project name for logging
+  project_name: gkd_training
+
+  # Experiment name
+  experiment_name: gkd_experiment
+
+  # Validate before training starts
+  val_before_train: true
+
+  # Number of training epochs
+  total_epochs: 2
+
+  # Save checkpoint frequency (in steps)
+  save_freq: 80
+
+  # Validation frequency (in steps)
+  test_freq: 10
+
+  # Number of validation generations to log
+  log_val_generations: 40
