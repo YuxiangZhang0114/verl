@@ -117,7 +117,7 @@ python3 -m verl.trainer.main_gkd \
     actor_rollout_ref.actor.fsdp_config.optimizer_offload=True \
     actor_rollout_ref.rollout.name=sglang \
     actor_rollout_ref.rollout.mode=async \
-    actor_rollout_ref.rollout.n=1 \
+    actor_rollout_ref.rollout.n=5 \
     actor_rollout_ref.rollout.gpu_memory_utilization=0.6 \
     actor_rollout_ref.rollout.temperature=1.0 \
     actor_rollout_ref.rollout.top_p=0.99 \
@@ -152,5 +152,5 @@ python3 -m verl.trainer.main_gkd \
     trainer.save_freq=80 \
     trainer.test_freq=10 \
     trainer.log_val_generations=40 \
-    trainer.val_before_train=True \
+    trainer.val_before_train=False \
     trainer.total_epochs=2 "$@"

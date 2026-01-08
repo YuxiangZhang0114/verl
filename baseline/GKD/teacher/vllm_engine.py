@@ -167,7 +167,11 @@ class VLLMEngine:
 
         # vLLM 0.11+ changed API: use 'prompts' instead of 'prompt_token_ids'
         # prompts can accept a list of token id lists directly
-        outputs = self.llm.generate(prompts=prompt_token_ids, sampling_params=sampling_params)
+        # outputs = self.llm.generate(prompts=prompt_token_ids, sampling_params=sampling_params)
+        
+        # Wrap token ids into dicts for recent vLLM versions which expect TokensPrompt (dict)
+        prompts = [{"prompt_token_ids": ids} for ids in prompt_token_ids]
+        outputs = self.llm.generate(prompts=prompts, sampling_params=sampling_params)
 
         responses, teacher_topk_logprobs, teacher_topk_indices = [], [], []
         for output in outputs:

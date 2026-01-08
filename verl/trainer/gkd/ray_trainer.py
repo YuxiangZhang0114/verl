@@ -127,7 +127,7 @@ class RayGKDTrainer(RayPPOTrainer):
         """
         if not self.use_teacher or self.teacher_client is None:
             # Return empty proto if teacher is disabled
-            return DataProto(batch={}, non_tensor_batch={})
+            return DataProto(batch=None, non_tensor_batch={})
         
         # Extract input_ids and attention_mask
         input_ids = batch.batch["input_ids"]
@@ -158,7 +158,7 @@ class RayGKDTrainer(RayPPOTrainer):
             except Exception as e:
                 print(f"[GKD] Teacher request failed: {e}")
                 # Return empty result on error
-                return DataProto(batch={}, non_tensor_batch={})
+                return DataProto(batch=None, non_tensor_batch={})
             
             all_teacher_topk_logps.extend(teacher_topk_logps)
             all_teacher_topk_indices.extend(teacher_topk_indices)
