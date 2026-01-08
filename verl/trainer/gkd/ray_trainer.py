@@ -214,13 +214,13 @@ class RayGKDTrainer(RayPPOTrainer):
             timing = {}
             with marked_timer("get_teacher_knowledge", timing):
                 teacher_output = self._get_teacher_knowledge(batch)
-                
-                # Only union if teacher returned valid data
-                if teacher_output.non_tensor_batch:
-                    batch = batch.union(teacher_output)
-                    print(f"[GKD] Teacher knowledge added to batch (took {timing['get_teacher_knowledge']:.2f}s)")
-                else:
-                    print(f"[GKD] WARNING: Teacher knowledge retrieval failed, proceeding without distillation")
+            
+            # Only union if teacher returned valid data
+            if teacher_output.non_tensor_batch:
+                batch = batch.union(teacher_output)
+                print(f"[GKD] Teacher knowledge added to batch (took {timing.get('get_teacher_knowledge', 0):.2f}s)")
+            else:
+                print(f"[GKD] WARNING: Teacher knowledge retrieval failed, proceeding without distillation")
         
         # Check if we should use RL loss (for pure distillation mode)
         use_rl_loss = self.config.gkd.get("use_rl_loss", False)
