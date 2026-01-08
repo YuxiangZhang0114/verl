@@ -27,7 +27,7 @@ from megatron.core import parallel_state as mpu
 from megatron.core.distributed import finalize_model_grads
 from megatron.core.optimizer import DistributedOptimizer
 from megatron.core.pipeline_parallel import get_forward_backward_func
-from megatron_kl_loss import vocab_parallel_kl_divergence
+from .megatron_kl_loss import vocab_parallel_kl_divergence
 from omegaconf import DictConfig, OmegaConf
 from torch import nn
 
