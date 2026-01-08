@@ -117,6 +117,7 @@ python3 -m recipe.gkd.main_gkd \
     actor_rollout_ref.rollout.tensor_model_parallel_size=$INFER_TP \
     actor_rollout_ref.rollout.max_model_len=32768 \
     actor_rollout_ref.rollout.load_format='dummy_megatron' \
+    +actor_rollout_ref.rollout.agent.default_agent_loop=tool_agent \
     actor_rollout_ref.rollout.multi_turn.enable=True \
     actor_rollout_ref.rollout.multi_turn.max_assistant_turns=16 \
     actor_rollout_ref.rollout.multi_turn.format=hermes \
