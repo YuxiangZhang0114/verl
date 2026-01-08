@@ -2,6 +2,7 @@
 export PROXY_FRONTEND_PORT=15555
 export PROXY_BACKEND_PORT=15556
 
+export CUDA_VISIBLE_DEVICES=0,1,2,3
 BACKEND=vllm
 CKPT_PATH="Qwen/Qwen3-30B-A3B-Instruct-2507"
 
@@ -29,7 +30,7 @@ wait_server_ready proxy localhost $PROXY_BACKEND_PORT
 
 echo "teacher proxy is ready"
 
-nohup python worker.py --backend $BACKEND --tp-size 2 --n-logprobs 256 --ckpt-path $CKPT_PATH &> worker.log &
+nohup python worker.py --backend $BACKEND --tp-size 4 --n-logprobs 256 --ckpt-path $CKPT_PATH &> worker.log &
 echo "start teacher worker"
 
 echo "teacher server is ready"
