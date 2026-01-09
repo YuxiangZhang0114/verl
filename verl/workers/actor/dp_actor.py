@@ -293,20 +293,24 @@ class DataParallelPPOActor(BasePPOActor):
                 distill_loss = None
                 if (teacher_topk_logps is not None and teacher_topk_indices is not None 
                     and response_mask_for_distill is not None):
-                    if self.use_ulysses_sp:
-                        raise RuntimeError(
-                            "[GKD] Distillation loss with ulysses_sequence_parallel_size > 1 not supported yet. "
-                            f"Current ulysses_sequence_parallel_size={self.ulysses_sequence_parallel_size}. "
-                            "Please set actor_rollout_ref.actor.ulysses_sequence_parallel_size=1."
+                    try:
+                        if self.use_ulysses_sp:
+                            raise RuntimeError(
+                                "[GKD] Distillation loss with ulysses_sequence_parallel_size > 1 not supported yet. "
+                                f"Current ulysses_sequence_parallel_size={self.ulysses_sequence_parallel_size}. "
+                                "Please set actor_rollout_ref.actor.ulysses_sequence_parallel_size=1."
+                            )
+                        from verl.trainer.gkd.distill_loss import compute_sparse_kl_divergence_from_logprobs
+                        distill_loss = compute_sparse_kl_divergence_from_logprobs(
+                            student_log_probs=log_probs,
+                            teacher_topk_logps=teacher_topk_logps,
+                            teacher_topk_indices=teacher_topk_indices,
+                            response_mask=response_mask_for_distill,
+                            loss_type=distill_loss_type,
                         )
-                    from verl.trainer.gkd.distill_loss import compute_sparse_kl_divergence_from_logprobs
-                    distill_loss = compute_sparse_kl_divergence_from_logprobs(
-                        student_log_probs=log_probs,
-                        teacher_topk_logps=teacher_topk_logps,
-                        teacher_topk_indices=teacher_topk_indices,
-                        response_mask=response_mask_for_distill,
-                        loss_type=distill_loss_type,
-                    )
+                    except Exception as e:
+                        logger.warning(f"[GKD] Failed to compute distillation loss: {e}. Proceeding without it.")
+                        distill_loss = None
                 
                 # Return with distill_loss (or None if no teacher knowledge)
                 return entropy, log_probs, distill_loss
@@ -356,14 +360,18 @@ class DataParallelPPOActor(BasePPOActor):
                     distill_loss = None
                     if (teacher_topk_logps is not None and teacher_topk_indices is not None 
                         and response_mask_for_distill is not None):
-                        from verl.trainer.gkd.distill_loss import compute_sparse_kl_divergence_from_logprobs
-                        distill_loss = compute_sparse_kl_divergence_from_logprobs(
-                            student_log_probs=log_probs,
-                            teacher_topk_logps=teacher_topk_logps,
-                            teacher_topk_indices=teacher_topk_indices,
-                            response_mask=response_mask_for_distill,
-                            loss_type=distill_loss_type,
-                        )
+                        try:
+                            from verl.trainer.gkd.distill_loss import compute_sparse_kl_divergence_from_logprobs
+                            distill_loss = compute_sparse_kl_divergence_from_logprobs(
+                                student_log_probs=log_probs,
+                                teacher_topk_logps=teacher_topk_logps,
+                                teacher_topk_indices=teacher_topk_indices,
+                                response_mask=response_mask_for_distill,
+                                loss_type=distill_loss_type,
+                            )
+                        except Exception as e:
+                            logger.warning(f"[GKD] Failed to compute distillation loss: {e}. Proceeding without it.")
+                            distill_loss = None
 
             return entropy, log_probs, distill_loss
 
@@ -624,10 +632,13 @@ class DataParallelPPOActor(BasePPOActor):
 
                     # GKD: Add distillation loss if it was computed
                     if distill_loss is not None:
-                        distill_loss_coef = micro_batch.meta_info.get("gkd_distill_loss_coef", 1.0)
-                        policy_loss = policy_loss + distill_loss * distill_loss_coef
-                        metrics["actor/distill_loss"] += distill_loss.detach().item() * loss_scale_factor
-                        micro_batch_metrics["actor/distill_coef"] = distill_loss_coef
+                        try:
+                            distill_loss_coef = micro_batch.meta_info.get("gkd_distill_loss_coef", 1.0)
+                            policy_loss = policy_loss + distill_loss * distill_loss_coef
+                            metrics["actor/distill_loss"] += distill_loss.detach().item() * loss_scale_factor
+                            micro_batch_metrics["actor/distill_coef"] = distill_loss_coef
+                        except Exception as e:
+                            logger.warning(f"[GKD] Failed to apply distillation loss: {e}")
 
                     elif pure_distillation and not has_teacher_knowledge:
                         # Pure distillation mode but no teacher knowledge - this is an error
