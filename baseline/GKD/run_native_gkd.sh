@@ -72,9 +72,9 @@ python3 -m verl.trainer.main_ppo \
     critic.model.path="Qwen/Qwen3-4B-Instruct-2507" \
     critic.model.enable_gradient_checkpointing=True \
     critic.ppo_micro_batch_size_per_gpu=4 \
-    critic.model.fsdp_config.param_offload=False \
-    critic.model.fsdp_config.grad_offload=False \
-    critic.model.fsdp_config.optimizer_offload=False \
+    critic.model.fsdp_config.param_offload=True \
+    critic.model.fsdp_config.grad_offload=True \
+    critic.model.fsdp_config.optimizer_offload=True \
     reward_model.enable=False \
     trainer.critic_warmup=0 \
     trainer.val_before_train=True \
