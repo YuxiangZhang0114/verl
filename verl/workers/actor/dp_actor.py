@@ -228,8 +228,14 @@ class DataParallelPPOActor(BasePPOActor):
                     
                     # GKD: Compute distillation loss before dividing by temperature
                     distill_loss = None
-                    if teacher_topk_logps is not None and not self.use_ulysses_sp:
-                        # Note: ulysses_sp not supported yet as logits shape is different
+                    if teacher_topk_logps is not None:
+                        if self.use_ulysses_sp:
+                            # Ulysses SP changes logits shape - not supported yet
+                            raise RuntimeError(
+                                "[GKD] Distillation loss computation with ulysses_sequence_parallel_size > 1 is not supported yet. "
+                                f"Current ulysses_sequence_parallel_size={self.ulysses_sequence_parallel_size}. "
+                                "Please set actor_rollout_ref.actor.ulysses_sequence_parallel_size=1 when using GKD."
+                            )
                         distill_loss = self._compute_distill_loss_from_logits_rmpad(
                             logits_rmpad.clone(),  # Clone to avoid modifying original
                             indices, batch_size, seqlen,
@@ -382,16 +388,17 @@ class DataParallelPPOActor(BasePPOActor):
             Scalar loss tensor
         """
         from verl.trainer.gkd.distill_loss import compute_fsdp_kl_divergence
-        from verl.utils.model import pad_input
         
         # Pad logits back to [batch, seq, vocab]
+        # Note: pad_input is imported at the top of this file from verl.utils.attention_utils
+        # logits_rmpad shape: (total_nnz, vocab_size)
+        # pad_input expects (total_nnz, ...) and returns (batch, seq, ...)
         full_logits = pad_input(
-            hidden_states=logits_rmpad.unsqueeze(0),  # (1, total_nnz, vocab)
+            hidden_states=logits_rmpad,  # (total_nnz, vocab_size)
             indices=indices,
             batch=batch_size,
             seqlen=seqlen,
         )  # [batch, seq, vocab]
-        full_logits = full_logits.squeeze(0)  # Remove extra dim if needed
         
         # Extract response part - teacher knowledge is already response-only
         response_length = response_mask.shape[-1]
@@ -667,12 +674,6 @@ class DataParallelPPOActor(BasePPOActor):
                         policy_loss = policy_loss + distill_loss * distill_loss_coef
                         metrics["actor/distill_loss"] += distill_loss.detach().item() * loss_scale_factor
                         micro_batch_metrics["actor/distill_coef"] = distill_loss_coef
-                    elif has_teacher_knowledge:
-                        # Teacher knowledge was provided but distill_loss is None (shouldn't happen)
-                        raise RuntimeError(
-                            "[GKD] Teacher knowledge provided but distill_loss is None. "
-                            "This may indicate an issue with the forward pass."
-                        )
 
                     elif pure_distillation and not has_teacher_knowledge:
                         # Pure distillation mode but no teacher knowledge - this is an error
