@@ -88,7 +88,7 @@ function now() {
 }
 
 USE_FUSED_KERNELS=False
-sp_size=2
+sp_size=1
 # Run GKD training with hybrid engine mode
 python3 -m verl.trainer.main_gkd \
     --config-name=gkd_trainer \
