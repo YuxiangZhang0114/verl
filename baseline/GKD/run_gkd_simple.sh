@@ -56,6 +56,9 @@ save_path="/mnt/workspace/checkpoints/qwen3_4b_gkd_simple"
 NODES=1
 N_GPUS_PER_NODE=4  # All 6 GPUs in shared pool
 
+# Sequence parallel size (IMPORTANT: GKD currently only supports sp_size=1)
+sp_size=1
+
 # Teacher server configuration
 TEACHER_SERVER_HOST=127.0.0.1
 TEACHER_SERVER_PORT=15555
@@ -84,6 +87,8 @@ function now() {
     date '+%Y-%m-%d-%H-%M'
 }
 
+USE_FUSED_KERNELS=False
+sp_size=2
 # Run GKD training with hybrid engine mode
 python3 -m verl.trainer.main_gkd \
     --config-name=gkd_trainer \
@@ -92,7 +97,7 @@ python3 -m verl.trainer.main_gkd \
     data.prompt_key=prompt \
     data.train_batch_size=128 \
     data.val_batch_size=400 \
-    data.max_prompt_length=3000 \
+    data.max_prompt_length=2048 \
     data.max_response_length=20480 \
     data.filter_overlong_prompts=True \
     data.truncation='error' \
@@ -109,21 +114,24 @@ python3 -m verl.trainer.main_gkd \
     actor_rollout_ref.actor.ppo_mini_batch_size=64 \
     actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=4 \
     actor_rollout_ref.actor.use_dynamic_bsz=True \
-    actor_rollout_ref.actor.ppo_max_token_len_per_gpu=24000 \
+    actor_rollout_ref.actor.ppo_max_token_len_per_gpu=23000 \
     actor_rollout_ref.actor.ppo_epochs=1 \
     actor_rollout_ref.actor.entropy_coeff=0.0 \
     actor_rollout_ref.actor.use_kl_loss=False \
     actor_rollout_ref.actor.fsdp_config.param_offload=True \
     actor_rollout_ref.actor.fsdp_config.optimizer_offload=True \
+    actor_rollout_ref.actor.ulysses_sequence_parallel_size=${sp_size} \
+    actor_rollout_ref.ref.ulysses_sequence_parallel_size=${sp_size} \
     actor_rollout_ref.rollout.name=sglang \
     actor_rollout_ref.rollout.mode=async \
-    actor_rollout_ref.rollout.n=5 \
+    actor_rollout_ref.rollout.n=1 \
+    actor_rollout_ref.model.use_fused_kernels=$USE_FUSED_KERNELS \
     actor_rollout_ref.rollout.gpu_memory_utilization=0.6 \
     actor_rollout_ref.rollout.temperature=1.0 \
     actor_rollout_ref.rollout.top_p=0.99 \
     actor_rollout_ref.rollout.top_k=-1 \
     actor_rollout_ref.rollout.tensor_model_parallel_size=1 \
-    actor_rollout_ref.rollout.max_model_len=32768 \
+    actor_rollout_ref.rollout.max_model_len=23000 \
     actor_rollout_ref.rollout.multi_turn.enable=True \
     actor_rollout_ref.rollout.multi_turn.max_assistant_turns=16 \
     actor_rollout_ref.rollout.multi_turn.format=hermes \

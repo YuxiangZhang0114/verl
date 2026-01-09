@@ -92,12 +92,18 @@ class DataParallelPPOActor(BasePPOActor):
             self.scaler = None
 
     def _forward_micro_batch(
-        self, micro_batch, temperature, calculate_entropy=False
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+        self, micro_batch, temperature, calculate_entropy=False,
+        teacher_topk_logps=None,
+        teacher_topk_indices=None,
+        response_mask_for_distill=None,
+        distill_temperature=1.0,
+        distill_loss_type="forward_kl",
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Returns:
             entropy: # (bs, response_len)
             log_probs: # (bs, response_len)
+            distill_loss: # scalar tensor (if teacher knowledge provided) or None
         """
         response_length = micro_batch["responses"].size(-1)
         multi_modal_inputs = {}
@@ -207,9 +213,30 @@ class DataParallelPPOActor(BasePPOActor):
                 if self.use_fused_kernels:
                     log_probs = output.log_probs.squeeze(0)  # (total_nnz,)
                     entropy_rmpad = output.entropy.squeeze(0)  # (total_nnz,)
+                    
+                    # GKD: Cannot compute distillation loss with fused kernels (no logits)
+                    distill_loss = None
+                    if teacher_topk_logps is not None:
+                        raise RuntimeError(
+                            "[GKD] Distillation loss computation requires logits, but use_fused_kernels=True "
+                            "does not return logits. Please set actor_rollout_ref.model.use_fused_kernels=False "
+                            "when using GKD."
+                        )
 
                 else:
                     logits_rmpad = output.logits.squeeze(0)  # (total_nnz, vocab_size)
+                    
+                    # GKD: Compute distillation loss before dividing by temperature
+                    distill_loss = None
+                    if teacher_topk_logps is not None and not self.use_ulysses_sp:
+                        # Note: ulysses_sp not supported yet as logits shape is different
+                        distill_loss = self._compute_distill_loss_from_logits_rmpad(
+                            logits_rmpad.clone(),  # Clone to avoid modifying original
+                            indices, batch_size, seqlen,
+                            teacher_topk_logps, teacher_topk_indices,
+                            response_mask_for_distill, distill_temperature, distill_loss_type
+                        )
+                    
                     logits_rmpad.div_(temperature)
 
                     # if use_sp: ((total_nnz / sp) + pad) ; if not use_sp: (batch, seqlen)
@@ -272,6 +299,9 @@ class DataParallelPPOActor(BasePPOActor):
                 if calculate_entropy:
                     entropy = full_entropy.squeeze(-1)[:, -response_length - 1 : -1]  # (bsz, response_length)
                 log_probs = full_log_probs.squeeze(-1)[:, -response_length - 1 : -1]  # (bsz, response_length)
+                
+                # Return with distill_loss (or None if no teacher knowledge)
+                return entropy, log_probs, distill_loss
 
             else:  # not using rmpad and no ulysses sp
                 extra_args = {}
@@ -291,9 +321,33 @@ class DataParallelPPOActor(BasePPOActor):
                 if self.use_fused_kernels:
                     log_probs = output.log_probs[:, -response_length - 1 : -1]
                     entropy = output.entropy[:, -response_length - 1 : -1]  # (bsz, response_length)
+                    
+                    # GKD: Cannot compute distillation loss with fused kernels (no logits)
+                    distill_loss = None
+                    if teacher_topk_logps is not None:
+                        raise RuntimeError(
+                            "[GKD] Distillation loss computation requires logits, but use_fused_kernels=True "
+                            "does not return logits. Please set actor_rollout_ref.model.use_fused_kernels=False "
+                            "when using GKD."
+                        )
 
                 else:
                     logits = output.logits
+                    
+                    # GKD: Compute distillation loss on response portion before temperature scaling
+                    distill_loss = None
+                    if teacher_topk_logps is not None:
+                        from verl.trainer.gkd.distill_loss import compute_fsdp_kl_divergence
+                        # Extract response logits (before temperature scaling for distillation)
+                        response_logits = logits[:, -response_length - 1 : -1, :]  # (bsz, response_length, vocab)
+                        distill_loss = compute_fsdp_kl_divergence(
+                            student_logits=response_logits,
+                            teacher_topk_logps=teacher_topk_logps,
+                            teacher_topk_indices=teacher_topk_indices,
+                            response_mask=response_mask_for_distill,
+                            temperature=distill_temperature,
+                            loss_type=distill_loss_type,
+                        )
 
                     logits.div_(temperature)
                     logits = logits[:, -response_length - 1 : -1, :]  # (bsz, response_length, vocab_size)
@@ -304,7 +358,53 @@ class DataParallelPPOActor(BasePPOActor):
                         else:
                             entropy = torch.utils.checkpoint.checkpoint(verl_F.entropy_from_logits, logits)
 
-            return entropy, log_probs
+            return entropy, log_probs, distill_loss
+
+    def _compute_distill_loss_from_logits_rmpad(
+        self, logits_rmpad, indices, batch_size, seqlen,
+        teacher_topk_logps, teacher_topk_indices,
+        response_mask, temperature, loss_type
+    ):
+        """Compute distillation loss from rmpad logits.
+        
+        Args:
+            logits_rmpad: Logits after remove padding, shape (total_nnz, vocab_size)
+            indices: Indices for padding back
+            batch_size: Original batch size
+            seqlen: Original sequence length
+            teacher_topk_logps: Teacher's top-k log probs [batch, response_len, topk]
+            teacher_topk_indices: Teacher's top-k indices [batch, response_len, topk]
+            response_mask: Response mask [batch, response_len]
+            temperature: Temperature for distillation
+            loss_type: Type of KL divergence
+            
+        Returns:
+            Scalar loss tensor
+        """
+        from verl.trainer.gkd.distill_loss import compute_fsdp_kl_divergence
+        from verl.utils.model import pad_input
+        
+        # Pad logits back to [batch, seq, vocab]
+        full_logits = pad_input(
+            hidden_states=logits_rmpad.unsqueeze(0),  # (1, total_nnz, vocab)
+            indices=indices,
+            batch=batch_size,
+            seqlen=seqlen,
+        )  # [batch, seq, vocab]
+        full_logits = full_logits.squeeze(0)  # Remove extra dim if needed
+        
+        # Extract response part - teacher knowledge is already response-only
+        response_length = response_mask.shape[-1]
+        response_logits = full_logits[:, -response_length:, :]
+        
+        return compute_fsdp_kl_divergence(
+            student_logits=response_logits,
+            teacher_topk_logps=teacher_topk_logps,
+            teacher_topk_indices=teacher_topk_indices,
+            response_mask=response_mask,
+            temperature=temperature,
+            loss_type=loss_type,
+        )
 
     def _optimizer_step(self):
         assert self.config.grad_clip is not None
@@ -379,7 +479,7 @@ class DataParallelPPOActor(BasePPOActor):
             micro_batch = micro_batch.to(get_device_id())
             model_inputs = {**micro_batch.batch, **micro_batch.non_tensor_batch}
             with torch.no_grad():
-                entropy, log_probs = self._forward_micro_batch(
+                entropy, log_probs, _ = self._forward_micro_batch(
                     model_inputs, temperature=temperature, calculate_entropy=calculate_entropy
                 )
             log_probs_lst.append(log_probs)
@@ -480,9 +580,25 @@ class DataParallelPPOActor(BasePPOActor):
                     else:
                         loss_scale_factor = 1 / self.gradient_accumulation
 
-                    # all return: (bsz, response_length)
-                    entropy, log_prob = self._forward_micro_batch(
-                        model_inputs, temperature=temperature, calculate_entropy=calculate_entropy
+                    # Prepare GKD parameters if teacher knowledge is present
+                    gkd_kwargs = {}
+                    if has_teacher_knowledge:
+                        gkd_kwargs = {
+                            "teacher_topk_logps": torch.from_numpy(
+                                micro_batch.non_tensor_batch["teacher_topk_logps"]
+                            ).to(get_device_id()),
+                            "teacher_topk_indices": torch.from_numpy(
+                                micro_batch.non_tensor_batch["teacher_topk_indices"]
+                            ).to(get_device_id()),
+                            "response_mask_for_distill": response_mask,
+                            "distill_temperature": micro_batch.meta_info.get("gkd_distill_temperature", 1.0),
+                            "distill_loss_type": micro_batch.meta_info.get("gkd_distill_loss_type", "forward_kl"),
+                        }
+
+                    # all return: (bsz, response_length), and distill_loss if GKD enabled
+                    entropy, log_prob, distill_loss = self._forward_micro_batch(
+                        model_inputs, temperature=temperature, calculate_entropy=calculate_entropy,
+                        **gkd_kwargs
                     )
 
                     # for fully_async_policy recipe
@@ -545,50 +661,20 @@ class DataParallelPPOActor(BasePPOActor):
                         if entropy_coeff != 0:
                             policy_loss -= entropy_agg * entropy_coeff
 
-                    # GKD: Add distillation loss if teacher knowledge is present
-                    if has_teacher_knowledge:
-                        # Import distillation loss function
-                        from verl.trainer.gkd.distill_loss import compute_fsdp_kl_divergence
-                        
-                        # Get teacher knowledge from non_tensor_batch
-                        teacher_topk_logps = torch.from_numpy(
-                            micro_batch.non_tensor_batch["teacher_topk_logps"]
-                        ).to(get_device_id())
-                        teacher_topk_indices = torch.from_numpy(
-                            micro_batch.non_tensor_batch["teacher_topk_indices"]
-                        ).to(get_device_id())
-                        
-                        # Get student logits from forward pass
-                        # We need to recompute forward to get logits (log_prob only gives us selected token probs)
-                        with torch.autocast(device_type=self.device_name, dtype=self.param_dtype):
-                            output = self.actor_module(
-                                input_ids=model_inputs["input_ids"],
-                                attention_mask=model_inputs["attention_mask"],
-                                position_ids=model_inputs["position_ids"],
-                                use_cache=False,
-                            )
-                            student_logits = output.logits  # [batch_size, seq_len, vocab_size]
-                        
-                        # Get GKD config from meta_info (passed from trainer)
+                    # GKD: Add distillation loss if it was computed
+                    if distill_loss is not None:
                         distill_loss_coef = micro_batch.meta_info.get("gkd_distill_loss_coef", 1.0)
-                        distill_loss_type = micro_batch.meta_info.get("gkd_distill_loss_type", "forward_kl")
-                        distill_temperature = micro_batch.meta_info.get("gkd_distill_temperature", 1.0)
-                        
-                        # Compute distillation loss
-                        distill_loss = compute_fsdp_kl_divergence(
-                            student_logits=student_logits,
-                            teacher_topk_logps=teacher_topk_logps,
-                            teacher_topk_indices=teacher_topk_indices,
-                            response_mask=response_mask,
-                            temperature=distill_temperature,
-                            loss_type=distill_loss_type,
-                        )
-                        
-                        # Add distillation loss to policy loss
                         policy_loss = policy_loss + distill_loss * distill_loss_coef
-                        metrics["actor/distill_loss"] = metrics.get("actor/distill_loss", 0.0) + distill_loss.detach().item() * loss_scale_factor
+                        metrics["actor/distill_loss"] += distill_loss.detach().item() * loss_scale_factor
                         micro_batch_metrics["actor/distill_coef"] = distill_loss_coef
-                    elif pure_distillation:
+                    elif has_teacher_knowledge:
+                        # Teacher knowledge was provided but distill_loss is None (shouldn't happen)
+                        raise RuntimeError(
+                            "[GKD] Teacher knowledge provided but distill_loss is None. "
+                            "This may indicate an issue with the forward pass."
+                        )
+
+                    elif pure_distillation and not has_teacher_knowledge:
                         # Pure distillation mode but no teacher knowledge - this is an error
                         raise RuntimeError(
                             "[GKD] Pure distillation mode enabled (use_rl_loss=false) but no teacher knowledge found! "
