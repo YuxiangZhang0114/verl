@@ -51,67 +51,6 @@ def compute_advantage(data: DataProto, adv_estimator, config):
         )
         data.batch["advantages"] = advantages
         data.batch["returns"] = returns
-    elif adv_estimator == "grpo":
-        # Implement Group Relative Policy Optimization logic
-        # 1. Calculate returns (cumulative rewards) based on PRIME's token-level rewards
-        # 2. Perform Group Normalization: (Return - Mean) / Std
-        # 3. Store in data.batch["advantages"]
-
-        # If using RM scores, we assume they are already computed and stored in data.batch["rm_scores"]
-        # If using GT scores, they are in data.batch["acc"]
-        
-        # We need a scalar reward for GRPO. 
-        # PRIME typically computes dense rewards. For GRPO, we usually aggregate them or use the final reward.
-        # Assuming we use the 'acc' or sum of 'rm_scores' as the sequence-level reward.
-        
-        rewards = None
-        if "acc" in data.batch.keys():
-             rewards = data.batch["acc"]
-        elif "rm_scores" in data.batch.keys():
-             # Summing token-level rewards for sequence reward if acc is not available
-             rewards = data.batch["rm_scores"].sum(dim=-1)
-        
-        if rewards is None:
-             raise ValueError("No reward found for GRPO (looked for 'acc' or 'rm_scores').")
-
-        # Group Normalization
-        n_samples = config.actor_rollout_ref.rollout.n
-        # Reshape to (batch_size, n_samples)
-        # Note: data.batch is already flattened [batch_size * n_samples, ...]
-        
-        # Ensure we have enough samples for normalization
-        assert rewards.shape[0] % n_samples == 0
-        
-        rewards_grouped = rewards.view(-1, n_samples)
-        mean = rewards_grouped.mean(dim=-1, keepdim=True)
-        std = rewards_grouped.std(dim=-1, keepdim=True)
-        
-        # Advantage is normalized return
-        # Add epsilon for numerical stability
-        advantages_grouped = (rewards_grouped - mean) / (std + 1e-8)
-        
-        # Flatten back
-        advantages = advantages_grouped.view(-1)
-        
-        # For GRPO, returns are typically just the rewards
-        returns = rewards
-        
-        # Expand advantages to token level (masked)
-        # We need to broadcast the sequence-level advantage to all valid tokens in the response
-        responses = data.batch["responses"]
-        response_length = responses.size(-1)
-        attention_mask = data.batch["attention_mask"]
-        response_mask = attention_mask[:, -response_length:] # Shape: [total_batch, response_len]
-        
-        # Broadcast advantages: [total_batch] -> [total_batch, response_len]
-        advantages_broadcast = advantages.unsqueeze(-1).expand_as(response_mask)
-        
-        # Apply mask
-        advantages_masked = advantages_broadcast * response_mask
-        
-        data.batch["advantages"] = advantages_masked
-        data.batch["returns"] = returns
-        
     else:
         raise NotImplementedError
     return data
@@ -237,26 +176,6 @@ class RayPRIMETrainer(RayPPOTrainer):
         )
 
         self.use_critic = False
-        self.async_rollout_mode = True
-
-        # Support custom AgentLoopManager via config
-        manager_class_fqn = self.config.actor_rollout_ref.rollout.get("agent", {}).get("agent_loop_manager_class")
-        if manager_class_fqn:
-            from verl.utils.import_utils import load_class_from_fqn
-            AgentLoopManager = load_class_from_fqn(manager_class_fqn, "AgentLoopManager")
-        else:
-            from verl.experimental.agent_loop import AgentLoopManager
-
-        if self.config.reward_model.enable and self.config.reward_model.enable_resource_pool:
-            rm_resource_pool = self.resource_pool_manager.get_resource_pool(Role.RewardModel)
-        else:
-            rm_resource_pool = None
-
-        self.async_rollout_manager = AgentLoopManager(
-            config=self.config,
-            worker_group=self.actor_rollout_wg,
-            rm_resource_pool=rm_resource_pool,
-        )
 
     def _create_dataloader(self, *args, **kwargs):
         from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
@@ -502,7 +421,7 @@ class RayPRIMETrainer(RayPPOTrainer):
                 with simple_timer("step", timing_raw):
                     # generate a batch
                     with simple_timer("gen", timing_raw):
-                        gen_batch_output = self.async_rollout_manager.generate_sequences(gen_batch_output)
+                        gen_batch_output = self.actor_rollout_wg.generate_sequences(gen_batch_output)
                         timing_raw.update(gen_batch_output.meta_info["timing"])
                         gen_batch_output.meta_info.pop("timing", None)
 
