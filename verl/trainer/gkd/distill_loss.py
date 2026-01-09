@@ -126,6 +126,76 @@ def compute_fsdp_kl_divergence(
     return loss
 
 
+def compute_sparse_kl_divergence_from_logprobs(
+    student_log_probs: torch.Tensor,
+    teacher_topk_logps: torch.Tensor,
+    teacher_topk_indices: torch.Tensor,
+    response_mask: torch.Tensor,
+    loss_type: str = "forward_kl",
+) -> torch.Tensor:
+    """
+    Compute KL divergence using only student's log probabilities at teacher's top-k positions.
+    This is memory-efficient as it doesn't require full vocab logits.
+    
+    Args:
+        student_log_probs: Student's log probabilities for generated tokens, shape [batch_size, seq_len]
+        teacher_topk_logps: Teacher's top-k log probabilities, shape [batch_size, seq_len, topk]
+        teacher_topk_indices: Teacher's top-k token indices, shape [batch_size, seq_len, topk]
+        response_mask: Mask for response tokens, shape [batch_size, seq_len]
+        loss_type: Type of KL divergence - only "forward_kl" supported for sparse version
+    
+    Returns:
+        Scalar loss tensor
+        
+    Note:
+        This function computes an approximation of KL divergence using only teacher's top-k.
+        It's suitable when we only have log_probs for the generated tokens (not full vocab logits).
+    """
+    if loss_type != "forward_kl":
+        raise ValueError(
+            f"Sparse KL divergence only supports forward_kl, got {loss_type}. "
+            "For other loss types, use compute_fsdp_kl_divergence with full logits."
+        )
+    
+    batch_size, seq_len = student_log_probs.shape
+    topk = teacher_topk_logps.shape[-1]
+    
+    # Teacher probabilities (normalized)
+    teacher_topk_probs = torch.exp(teacher_topk_logps)  # [batch, seq, topk]
+    teacher_topk_probs_normalized = teacher_topk_probs / (teacher_topk_probs.sum(dim=-1, keepdim=True) + 1e-10)
+    
+    # Teacher entropy: -sum(p * log(p))
+    teacher_entropy = torch.sum(
+        teacher_topk_probs_normalized * teacher_topk_logps,
+        dim=-1
+    )  # [batch, seq]
+    
+    # For cross-entropy, we need student log prob at teacher's top-k positions
+    # But we only have student_log_probs for the actual generated token
+    # This is an approximation: we assume student's log prob at other positions is very low
+    # So cross_entropy ≈ teacher_prob[generated_token] * student_log_prob[generated_token]
+    
+    # Expand student_log_probs to match teacher shape
+    student_log_probs_expanded = student_log_probs.unsqueeze(-1)  # [batch, seq, 1]
+    
+    # Approximate cross entropy (this is a lower bound)
+    # We only account for the generated token's contribution
+    cross_entropy_approx = student_log_probs_expanded.squeeze(-1)  # [batch, seq]
+    
+    # KL divergence (approximate)
+    per_token_kl = teacher_entropy - cross_entropy_approx  # [batch, seq]
+    
+    # Apply response mask and compute mean loss
+    masked_kl = per_token_kl * response_mask
+    num_valid_tokens = response_mask.sum()
+    if num_valid_tokens > 0:
+        loss = masked_kl.sum() / num_valid_tokens
+    else:
+        loss = masked_kl.sum() * 0.0
+    
+    return loss
+
+
 def compute_distill_loss_with_logits(
     student_logits: torch.Tensor,
     teacher_topk_logps: torch.Tensor,

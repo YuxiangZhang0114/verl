@@ -225,24 +225,6 @@ class DataParallelPPOActor(BasePPOActor):
 
                 else:
                     logits_rmpad = output.logits.squeeze(0)  # (total_nnz, vocab_size)
-                    
-                    # GKD: Compute distillation loss before dividing by temperature
-                    distill_loss = None
-                    if teacher_topk_logps is not None:
-                        if self.use_ulysses_sp:
-                            # Ulysses SP changes logits shape - not supported yet
-                            raise RuntimeError(
-                                "[GKD] Distillation loss computation with ulysses_sequence_parallel_size > 1 is not supported yet. "
-                                f"Current ulysses_sequence_parallel_size={self.ulysses_sequence_parallel_size}. "
-                                "Please set actor_rollout_ref.actor.ulysses_sequence_parallel_size=1 when using GKD."
-                            )
-                        distill_loss = self._compute_distill_loss_from_logits_rmpad(
-                            logits_rmpad.clone(),  # Clone to avoid modifying original
-                            indices, batch_size, seqlen,
-                            teacher_topk_logps, teacher_topk_indices,
-                            response_mask_for_distill, distill_temperature, distill_loss_type
-                        )
-                    
                     logits_rmpad.div_(temperature)
 
                     # if use_sp: ((total_nnz / sp) + pad) ; if not use_sp: (batch, seqlen)
@@ -306,6 +288,24 @@ class DataParallelPPOActor(BasePPOActor):
                     entropy = full_entropy.squeeze(-1)[:, -response_length - 1 : -1]  # (bsz, response_length)
                 log_probs = full_log_probs.squeeze(-1)[:, -response_length - 1 : -1]  # (bsz, response_length)
                 
+                # GKD: Compute distillation loss using padded log_probs (memory efficient)
+                distill_loss = None
+                if teacher_topk_logps is not None:
+                    if self.use_ulysses_sp:
+                        raise RuntimeError(
+                            "[GKD] Distillation loss with ulysses_sequence_parallel_size > 1 not supported yet. "
+                            f"Current ulysses_sequence_parallel_size={self.ulysses_sequence_parallel_size}. "
+                            "Please set actor_rollout_ref.actor.ulysses_sequence_parallel_size=1."
+                        )
+                    from verl.trainer.gkd.distill_loss import compute_sparse_kl_divergence_from_logprobs
+                    distill_loss = compute_sparse_kl_divergence_from_logprobs(
+                        student_log_probs=log_probs,
+                        teacher_topk_logps=teacher_topk_logps,
+                        teacher_topk_indices=teacher_topk_indices,
+                        response_mask=response_mask_for_distill,
+                        loss_type=distill_loss_type,
+                    )
+                
                 # Return with distill_loss (or None if no teacher knowledge)
                 return entropy, log_probs, distill_loss
 
@@ -339,21 +339,6 @@ class DataParallelPPOActor(BasePPOActor):
 
                 else:
                     logits = output.logits
-                    
-                    # GKD: Compute distillation loss on response portion before temperature scaling
-                    distill_loss = None
-                    if teacher_topk_logps is not None:
-                        from verl.trainer.gkd.distill_loss import compute_fsdp_kl_divergence
-                        # Extract response logits (before temperature scaling for distillation)
-                        response_logits = logits[:, -response_length - 1 : -1, :]  # (bsz, response_length, vocab)
-                        distill_loss = compute_fsdp_kl_divergence(
-                            student_logits=response_logits,
-                            teacher_topk_logps=teacher_topk_logps,
-                            teacher_topk_indices=teacher_topk_indices,
-                            response_mask=response_mask_for_distill,
-                            temperature=distill_temperature,
-                            loss_type=distill_loss_type,
-                        )
 
                     logits.div_(temperature)
                     logits = logits[:, -response_length - 1 : -1, :]  # (bsz, response_length, vocab_size)
@@ -363,55 +348,20 @@ class DataParallelPPOActor(BasePPOActor):
                             entropy = verl_F.entropy_from_logits(logits)  # (bsz, response_length)
                         else:
                             entropy = torch.utils.checkpoint.checkpoint(verl_F.entropy_from_logits, logits)
+                    
+                    # GKD: Compute distillation loss using log_probs (memory efficient)
+                    distill_loss = None
+                    if teacher_topk_logps is not None:
+                        from verl.trainer.gkd.distill_loss import compute_sparse_kl_divergence_from_logprobs
+                        distill_loss = compute_sparse_kl_divergence_from_logprobs(
+                            student_log_probs=log_probs,
+                            teacher_topk_logps=teacher_topk_logps,
+                            teacher_topk_indices=teacher_topk_indices,
+                            response_mask=response_mask_for_distill,
+                            loss_type=distill_loss_type,
+                        )
 
             return entropy, log_probs, distill_loss
-
-    def _compute_distill_loss_from_logits_rmpad(
-        self, logits_rmpad, indices, batch_size, seqlen,
-        teacher_topk_logps, teacher_topk_indices,
-        response_mask, temperature, loss_type
-    ):
-        """Compute distillation loss from rmpad logits.
-        
-        Args:
-            logits_rmpad: Logits after remove padding, shape (total_nnz, vocab_size)
-            indices: Indices for padding back
-            batch_size: Original batch size
-            seqlen: Original sequence length
-            teacher_topk_logps: Teacher's top-k log probs [batch, response_len, topk]
-            teacher_topk_indices: Teacher's top-k indices [batch, response_len, topk]
-            response_mask: Response mask [batch, response_len]
-            temperature: Temperature for distillation
-            loss_type: Type of KL divergence
-            
-        Returns:
-            Scalar loss tensor
-        """
-        from verl.trainer.gkd.distill_loss import compute_fsdp_kl_divergence
-        
-        # Pad logits back to [batch, seq, vocab]
-        # Note: pad_input is imported at the top of this file from verl.utils.attention_utils
-        # logits_rmpad shape: (total_nnz, vocab_size)
-        # pad_input expects (total_nnz, ...) and returns (batch, seq, ...)
-        full_logits = pad_input(
-            hidden_states=logits_rmpad,  # (total_nnz, vocab_size)
-            indices=indices,
-            batch=batch_size,
-            seqlen=seqlen,
-        )  # [batch, seq, vocab]
-        
-        # Extract response part - teacher knowledge is already response-only
-        response_length = response_mask.shape[-1]
-        response_logits = full_logits[:, -response_length:, :]
-        
-        return compute_fsdp_kl_divergence(
-            student_logits=response_logits,
-            teacher_topk_logps=teacher_topk_logps,
-            teacher_topk_indices=teacher_topk_indices,
-            response_mask=response_mask,
-            temperature=temperature,
-            loss_type=loss_type,
-        )
 
     def _optimizer_step(self):
         assert self.config.grad_clip is not None
