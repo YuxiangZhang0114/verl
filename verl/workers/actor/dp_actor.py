@@ -115,6 +115,18 @@ class DataParallelPPOActor(BasePPOActor):
 
         with torch.autocast(device_type=self.device_name, dtype=self.param_dtype):
             input_ids = micro_batch["input_ids"]
+            
+            # Convert teacher info to tensor if present
+            if teacher_topk_logps is not None and not isinstance(teacher_topk_logps, torch.Tensor):
+                teacher_topk_logps = torch.tensor(teacher_topk_logps, device=input_ids.device)
+            elif teacher_topk_logps is not None:
+                teacher_topk_logps = teacher_topk_logps.to(input_ids.device)
+                
+            if teacher_topk_indices is not None and not isinstance(teacher_topk_indices, torch.Tensor):
+                teacher_topk_indices = torch.tensor(teacher_topk_indices, device=input_ids.device)
+            elif teacher_topk_indices is not None:
+                teacher_topk_indices = teacher_topk_indices.to(input_ids.device)
+
             batch_size, seqlen = input_ids.shape
             attention_mask = micro_batch["attention_mask"]
             position_ids = micro_batch["position_ids"]

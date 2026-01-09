@@ -441,6 +441,41 @@ class MegatronPPOActor(BasePPOActor):
             micro_batches = mini_batch.batch.split(micro_batch_size)
             seq_len = micro_batches[0]["input_ids"].shape[1]
             total_seqlen = micro_batch_size * seq_len
+        
+        # Handle GKD teacher info if present in non_tensor_batch
+        if "teacher_topk_logps" in data.non_tensor_batch:
+            teacher_topk_logps = data.non_tensor_batch["teacher_topk_logps"]
+            teacher_topk_indices = data.non_tensor_batch["teacher_topk_indices"]
+            
+            if use_dynamic_bsz:
+                # rearrange based on indices
+                teacher_topk_logps_tensor = torch.tensor(teacher_topk_logps)
+                teacher_topk_indices_tensor = torch.tensor(teacher_topk_indices)
+                
+                teacher_logps_mb = []
+                teacher_indices_mb = []
+                
+                for partition in indices:
+                    curr_logp = []
+                    curr_idx = []
+                    for idx in partition:
+                        curr_logp.append(teacher_topk_logps_tensor[idx:idx+1])
+                        curr_idx.append(teacher_topk_indices_tensor[idx:idx+1])
+                    teacher_logps_mb.append(torch.cat(curr_logp))
+                    teacher_indices_mb.append(torch.cat(curr_idx))
+            else:
+                # simple split
+                teacher_logps_mb = np.array_split(teacher_topk_logps, len(micro_batches))
+                teacher_indices_mb = np.array_split(teacher_topk_indices, len(micro_batches))
+                # convert to tensors
+                teacher_logps_mb = [torch.tensor(x) for x in teacher_logps_mb]
+                teacher_indices_mb = [torch.tensor(x) for x in teacher_indices_mb]
+
+            # Inject into micro_batches
+            for i, mb in enumerate(micro_batches):
+                mb["teacher_topk_logps"] = teacher_logps_mb[i].pin_memory()
+                mb["teacher_topk_indices"] = teacher_indices_mb[i].pin_memory()
+
         # compute input shapes for pp stages
         n_micro_batch = len(micro_batches)
 

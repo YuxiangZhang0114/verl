@@ -346,6 +346,22 @@ class RayPPOTrainer:
             or config.actor_rollout_ref.model.get("lora_adapter_path") is not None
         )
 
+        # Initialize teacher client if configured
+        self.teacher_client = None
+        if hasattr(self.config.actor_rollout_ref, 'teacher'):
+            from verl.utils.teacher_client import TeacherClient
+            teacher_config = self.config.actor_rollout_ref.teacher
+            if teacher_config.server_ip:
+                self.teacher_client = TeacherClient(
+                    server_ip=teacher_config.server_ip,
+                    server_port=teacher_config.server_port,
+                    num_microbatches=teacher_config.get("num_microbatches", 1),
+                    n_server_workers=teacher_config.get("n_server_workers", 1),
+                    temperature=teacher_config.get("temperature", 1.0),
+                    only_response=teacher_config.get("only_response", False),
+                    max_seq_len=teacher_config.get("max_seq_len", None),
+                )
+
         # define in-reward KL control
         # kl loss control currently not suppoorted
         if self.config.algorithm.use_kl_in_reward:
@@ -1269,6 +1285,27 @@ class RayPPOTrainer:
             critic_output = self.critic_wg.update_critic(batch)
         return critic_output
 
+    def _async_get_teacher_knowledge(self, batch: DataProto, gen_batch: DataProto):
+        # Asynchronously get teacher knowledge
+        if not hasattr(self, 'teacher_client') or self.teacher_client is None:
+            return None
+            
+        from verl.utils.teacher_utils import get_teacher_knowledge
+        
+        # Prepare data for teacher
+        # We need to construct the full sequence from gen_batch which contains prompts and responses
+        # gen_batch has 'prompts', 'responses', 'attention_mask', etc.
+        # But wait, we usually pass the full batch (prompts+responses) to teacher.
+        # Let's use the 'batch' passed in, assuming it has been updated with generated sequences.
+        # In fit(), we do: batch = batch.union(gen_batch_output)
+        
+        # However, we want to start this ASAP.
+        # Let's assume we call this with the batch that has responses.
+        
+        # NOTE: get_teacher_knowledge expects DataProto with input_ids and attention_mask
+        teacher_batch_output = get_teacher_knowledge(batch, self.teacher_client, self.teacher_client.n_server_workers, is_async=False)
+        return teacher_batch_output
+
     def fit(self):
         """
         The training loop of PPO.
@@ -1403,6 +1440,16 @@ class RayPPOTrainer:
                     # repeat to align with repeated responses in rollout
                     batch = batch.repeat(repeat_times=self.config.actor_rollout_ref.rollout.n, interleave=True)
                     batch = batch.union(gen_batch_output)
+
+                    # --- GKD Teacher Call ---
+                    if self.teacher_client is not None:
+                        with marked_timer("teacher", timing_raw, color="blue"):
+                            # The batch now contains prompts and responses (from gen_batch_output)
+                            # We can fetch teacher knowledge now.
+                            teacher_output = self._async_get_teacher_knowledge(batch, gen_batch_output)
+                            if teacher_output is not None:
+                                batch = batch.union(teacher_output)
+                    # ------------------------
 
                     if "response_mask" not in batch.batch.keys():
                         batch.batch["response_mask"] = compute_response_mask(batch)
