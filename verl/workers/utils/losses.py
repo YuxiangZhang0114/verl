@@ -117,6 +117,15 @@ def ppo_loss(config: ActorConfig, model_output, data: TensorDict, dp_group=None)
     loss_mode = config.policy_loss.get("loss_mode", "vanilla")
 
     policy_loss_fn = get_policy_loss_fn(loss_mode)
+    
+    # Extract kl_losses from model_output if available
+    kl_losses = model_output.get("kl_losses", None)
+    if kl_losses is not None:
+        # Slice kl_losses if it has the same structure as log_probs
+        # Check if it needs slicing (e.g. if it includes prompt)
+        # Assuming it follows the same structure as log_probs in model_output
+        kl_losses = _slice_response_from_unpad_output(kl_losses, data)
+
     pg_loss, pg_metrics = policy_loss_fn(
         old_log_prob=old_log_prob,
         log_prob=log_prob,
@@ -125,6 +134,7 @@ def ppo_loss(config: ActorConfig, model_output, data: TensorDict, dp_group=None)
         loss_agg_mode=loss_agg_mode,
         config=config,
         rollout_is_weights=rollout_is_weights,
+        kl_losses=kl_losses,
     )
 
     metrics.update(pg_metrics)

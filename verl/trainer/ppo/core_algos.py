@@ -34,18 +34,7 @@ from verl.utils import as_torch_index, group_mean_std
 from verl.utils.import_utils import deprecated
 from verl.workers.config import ActorConfig
 
-PolicyLossFn = Callable[
-    [
-        torch.Tensor,  # old_log_prob
-        torch.Tensor,  # log_prob
-        torch.Tensor,  # advantages
-        torch.Tensor,  # response_mask
-        str,  # loss_agg_mode
-        Optional[DictConfig | ActorConfig],  # config
-        torch.Tensor | None,  # rollout_log_probs
-    ],
-    tuple[torch.Tensor, dict[str, Any]],
-]
+PolicyLossFn = Callable[..., tuple[torch.Tensor, dict[str, Any]]]
 
 POLICY_LOSS_REGISTRY: dict[str, PolicyLossFn] = {}
 
@@ -1951,3 +1940,33 @@ def compute_policy_loss_bypass_mode(
     pg_metrics.update(rollout_metrics)
 
     return pg_loss, pg_metrics
+
+@register_policy_loss("gkd")
+def compute_policy_loss_gkd(
+    old_log_prob: torch.Tensor,
+    log_prob: torch.Tensor,
+    advantages: torch.Tensor,
+    response_mask: torch.Tensor,
+    loss_agg_mode: str = "token-mean",
+    config: Optional[ActorConfig] = None,
+    rollout_is_weights: torch.Tensor | None = None,
+    kl_losses: torch.Tensor | None = None,
+) -> tuple[torch.Tensor, dict[str, Any]]:
+    """
+    Compute the GKD policy loss using pre-computed KL losses.
+    
+    Args:
+        kl_losses (torch.Tensor): Pre-computed KL losses, shape (batch_size, response_length).
+    """
+    if kl_losses is None:
+        raise ValueError("kl_losses must be provided for GKD loss")
+    
+    pg_loss = agg_loss(
+        loss_mat=kl_losses,
+        loss_mask=response_mask,
+        loss_agg_mode=loss_agg_mode,
+        **(config.global_batch_info if config else {})
+    )
+    
+    metrics = {"actor/kl_loss": pg_loss.detach().item()}
+    return pg_loss, metrics

@@ -27,6 +27,7 @@ from typing import Iterable
 
 import torch
 import torch.distributed
+from verl.utils.kl_loss import vocab_parallel_kl_divergence
 from megatron.core import parallel_state as mpu
 from megatron.core.distributed import finalize_model_grads
 
@@ -476,6 +477,14 @@ class MegatronPPOActor(BasePPOActor):
             loss_agg_mode = self.config.loss_agg_mode
             # compute policy loss
             log_prob = log_probs[:, -response_length - 1 : -1].contiguous()
+            
+            # extract kl_losses if available
+            kl_losses = None
+            if isinstance(output, dict) and "kl_losses" in output:
+                kl_losses = output["kl_losses"]
+                # slice response part
+                kl_losses = kl_losses[:, -response_length - 1 : -1].contiguous()
+
             ret_entropy = None
             stats = {}
             if not forward_only:
@@ -500,6 +509,7 @@ class MegatronPPOActor(BasePPOActor):
                     loss_agg_mode=loss_agg_mode,
                     config=self.config,
                     rollout_is_weights=rollout_is_weights,
+                    kl_losses=kl_losses,
                 )
                 stats.update(pg_metrics)
 
@@ -641,6 +651,16 @@ class MegatronPPOActor(BasePPOActor):
                         ret["entropy"] = entropy
                     else:
                         logits_bak = logits
+                    
+                    # GKD Integration: Compute KL loss if teacher info is available
+                    teacher_topk_logps = batch.get("teacher_topk_logps", None)
+                    teacher_topk_indices = batch.get("teacher_topk_indices", None)
+                    if teacher_topk_logps is not None and teacher_topk_indices is not None:
+                        kl_losses = vocab_parallel_kl_divergence(
+                            logits, teacher_topk_logps, teacher_topk_indices
+                        )
+                        ret["kl_losses"] = kl_losses
+
                     log_probs = vocab_parallel_log_probs_from_logits(logits_bak, label)
                     log_probs = log_probs.masked_fill(~label_mask, 0.0)
                     ret["log_probs"] = log_probs

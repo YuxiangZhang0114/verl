@@ -27,6 +27,7 @@ from torch.distributed.tensor import DTensor
 
 import verl.utils.torch_functional as verl_F
 from verl import DataProto
+from verl.utils.kl_loss import fsdp_kl_divergence
 from verl.trainer.ppo.core_algos import agg_loss, get_policy_loss_fn, kl_penalty
 from verl.utils.attention_utils import index_first_axis, pad_input, rearrange, unpad_input
 from verl.utils.device import get_device_id, get_device_name
@@ -93,11 +94,12 @@ class DataParallelPPOActor(BasePPOActor):
 
     def _forward_micro_batch(
         self, micro_batch, temperature, calculate_entropy=False
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Returns:
             entropy: # (bs, response_len)
             log_probs: # (bs, response_len)
+            kl_losses: # (bs, response_len) or None
         """
         response_length = micro_batch["responses"].size(-1)
         multi_modal_inputs = {}
@@ -105,6 +107,11 @@ class DataParallelPPOActor(BasePPOActor):
             from verl.utils.model import extract_multi_modal_inputs
 
             multi_modal_inputs = extract_multi_modal_inputs(micro_batch["multi_modal_inputs"])
+
+        # Check for teacher info
+        teacher_topk_logps = micro_batch.get("teacher_topk_logps", None)
+        teacher_topk_indices = micro_batch.get("teacher_topk_indices", None)
+        kl_losses = None
 
         with torch.autocast(device_type=self.device_name, dtype=self.param_dtype):
             input_ids = micro_batch["input_ids"]
@@ -120,6 +127,17 @@ class DataParallelPPOActor(BasePPOActor):
                     input_ids.unsqueeze(-1), attention_mask
                 )  # input_ids_rmpad (total_nnz, ...)
                 input_ids_rmpad = input_ids_rmpad.transpose(0, 1)  # (1, total_nnz)
+
+                # unpad teacher info if available
+                teacher_topk_logps_rmpad = None
+                teacher_topk_indices_rmpad = None
+                if teacher_topk_logps is not None and teacher_topk_indices is not None:
+                    teacher_topk_logps_rmpad = index_first_axis(
+                        rearrange(teacher_topk_logps, "b s ... -> (b s) ..."), indices
+                    )
+                    teacher_topk_indices_rmpad = index_first_axis(
+                        rearrange(teacher_topk_indices, "b s ... -> (b s) ..."), indices
+                    )
 
                 # unpad the position_ids to align the rotary
                 if position_ids.dim() == 3:
@@ -186,6 +204,19 @@ class DataParallelPPOActor(BasePPOActor):
                         position_ids_rmpad=None,
                         sp_size=self.ulysses_sequence_parallel_size,
                     )
+                    if teacher_topk_logps_rmpad is not None:
+                        teacher_topk_logps_rmpad, _, _ = ulysses_pad_and_slice_inputs(
+                            teacher_topk_logps_rmpad.unsqueeze(0), # Add batch dim for ulysses utils
+                            position_ids_rmpad=None,
+                            sp_size=self.ulysses_sequence_parallel_size
+                        )
+                        teacher_topk_logps_rmpad = teacher_topk_logps_rmpad.squeeze(0)
+                        teacher_topk_indices_rmpad, _, _ = ulysses_pad_and_slice_inputs(
+                            teacher_topk_indices_rmpad.unsqueeze(0),
+                            position_ids_rmpad=None,
+                            sp_size=self.ulysses_sequence_parallel_size
+                        )
+                        teacher_topk_indices_rmpad = teacher_topk_indices_rmpad.squeeze(0)
 
                 input_ids_rmpad_rolled = input_ids_rmpad_rolled.squeeze(0)  # ((total_nnz / sp) + pad)
 
@@ -230,6 +261,12 @@ class DataParallelPPOActor(BasePPOActor):
                             entropy_rmpad = torch.utils.checkpoint.checkpoint(
                                 self.compute_entropy_from_logits, logits_rmpad
                             )
+                    
+                    # Compute KL loss
+                    if teacher_topk_logps_rmpad is not None:
+                        kl_losses_rmpad = fsdp_kl_divergence(
+                            logits_rmpad, teacher_topk_logps_rmpad, teacher_topk_indices_rmpad
+                        )
 
                 # gather log_prob if sp > 1
                 if self.use_ulysses_sp:
@@ -247,11 +284,20 @@ class DataParallelPPOActor(BasePPOActor):
                             unpad_dim=0,
                             padding_size=pad_size,
                         )
+                    if not self.use_fused_kernels and teacher_topk_logps_rmpad is not None:
+                        kl_losses_rmpad = gather_outputs_and_unpad(
+                            kl_losses_rmpad,
+                            gather_dim=0,
+                            unpad_dim=0,
+                            padding_size=pad_size,
+                        )
 
                 if is_mask_all_zero:
                     log_probs = log_probs[:0]
                     if calculate_entropy:
                         entropy_rmpad = entropy_rmpad[:0]
+                    if not self.use_fused_kernels and teacher_topk_logps_rmpad is not None:
+                        kl_losses_rmpad = kl_losses_rmpad[:0]
 
                 # pad back to (bsz, seqlen)
                 if calculate_entropy:
@@ -267,11 +313,23 @@ class DataParallelPPOActor(BasePPOActor):
                     batch=batch_size,
                     seqlen=seqlen,
                 )
+                
+                full_kl_losses = None
+                if not self.use_fused_kernels and teacher_topk_logps_rmpad is not None:
+                    full_kl_losses = pad_input(
+                        hidden_states=kl_losses_rmpad.unsqueeze(-1),
+                        indices=indices,
+                        batch=batch_size,
+                        seqlen=seqlen,
+                    )
 
                 # only return response part:
                 if calculate_entropy:
                     entropy = full_entropy.squeeze(-1)[:, -response_length - 1 : -1]  # (bsz, response_length)
                 log_probs = full_log_probs.squeeze(-1)[:, -response_length - 1 : -1]  # (bsz, response_length)
+                
+                if full_kl_losses is not None:
+                    kl_losses = full_kl_losses.squeeze(-1)[:, -response_length - 1 : -1]
 
             else:  # not using rmpad and no ulysses sp
                 extra_args = {}
@@ -296,6 +354,14 @@ class DataParallelPPOActor(BasePPOActor):
                     logits = output.logits
 
                     logits.div_(temperature)
+                    # Compute KL loss before slicing if teacher info available
+                    if teacher_topk_logps is not None and teacher_topk_indices is not None:
+                        # logits: [bs, seqlen, vocab]
+                        # teacher_topk_logps: [bs, seqlen, k]
+                        kl_losses = fsdp_kl_divergence(logits, teacher_topk_logps, teacher_topk_indices)
+                        # slice response
+                        kl_losses = kl_losses[:, -response_length - 1 : -1]
+
                     logits = logits[:, -response_length - 1 : -1, :]  # (bsz, response_length, vocab_size)
                     log_probs = logprobs_from_logits(logits, micro_batch["responses"])
                     if calculate_entropy:
@@ -304,7 +370,7 @@ class DataParallelPPOActor(BasePPOActor):
                         else:
                             entropy = torch.utils.checkpoint.checkpoint(verl_F.entropy_from_logits, logits)
 
-            return entropy, log_probs
+            return entropy, log_probs, kl_losses
 
     def _optimizer_step(self):
         assert self.config.grad_clip is not None
@@ -375,7 +441,7 @@ class DataParallelPPOActor(BasePPOActor):
             micro_batch = micro_batch.to(get_device_id())
             model_inputs = {**micro_batch.batch, **micro_batch.non_tensor_batch}
             with torch.no_grad():
-                entropy, log_probs = self._forward_micro_batch(
+                entropy, log_probs, _ = self._forward_micro_batch(
                     model_inputs, temperature=temperature, calculate_entropy=calculate_entropy
                 )
             log_probs_lst.append(log_probs)
@@ -467,7 +533,7 @@ class DataParallelPPOActor(BasePPOActor):
                         loss_scale_factor = 1 / self.gradient_accumulation
 
                     # all return: (bsz, response_length)
-                    entropy, log_prob = self._forward_micro_batch(
+                    entropy, log_prob, kl_losses = self._forward_micro_batch(
                         model_inputs, temperature=temperature, calculate_entropy=calculate_entropy
                     )
 
@@ -500,6 +566,7 @@ class DataParallelPPOActor(BasePPOActor):
                         loss_agg_mode=loss_agg_mode,
                         config=self.config,
                         rollout_is_weights=rollout_is_weights,
+                        kl_losses=kl_losses,
                     )
                     micro_batch_metrics.update(pg_metrics)
 
