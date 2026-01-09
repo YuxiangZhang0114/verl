@@ -23,7 +23,7 @@ save_path="/mnt/workspace/checkpoints/search_r1_like_gkd_qwen3-4b-instruct_asear
 export WANDB_API_KEY="0559d52399bc5d3fd8e373bb4b8b6e8db054b9f7"
 
 python3 -m verl.trainer.main_ppo \
-    algorithm.adv_estimator=gae \
+    algorithm.adv_estimator=grpo \
     data.train_files="$TRAIN_DATA" \
     data.val_files="$VAL_DATA" \
     data.train_batch_size=128 \
