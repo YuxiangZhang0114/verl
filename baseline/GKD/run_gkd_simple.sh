@@ -141,7 +141,7 @@ python3 -m verl.trainer.main_gkd \
     actor_rollout_ref.rollout.agent.num_workers=1 \
     algorithm.adv_estimator=grpo \
     algorithm.use_kl_in_reward=False \
-    gkd.enable_teacher=false \
+    gkd.enable_teacher=True \
     gkd.teacher_ip=$TEACHER_SERVER_HOST \
     gkd.teacher_port=$TEACHER_SERVER_PORT \
     gkd.teacher_topk=256 \
