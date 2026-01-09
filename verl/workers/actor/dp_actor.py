@@ -289,8 +289,10 @@ class DataParallelPPOActor(BasePPOActor):
                 log_probs = full_log_probs.squeeze(-1)[:, -response_length - 1 : -1]  # (bsz, response_length)
                 
                 # GKD: Compute distillation loss using padded log_probs (memory efficient)
+                # Check ALL required parameters to avoid accidental computation in compute_log_prob
                 distill_loss = None
-                if teacher_topk_logps is not None:
+                if (teacher_topk_logps is not None and teacher_topk_indices is not None 
+                    and response_mask_for_distill is not None):
                     if self.use_ulysses_sp:
                         raise RuntimeError(
                             "[GKD] Distillation loss with ulysses_sequence_parallel_size > 1 not supported yet. "
@@ -350,8 +352,10 @@ class DataParallelPPOActor(BasePPOActor):
                             entropy = torch.utils.checkpoint.checkpoint(verl_F.entropy_from_logits, logits)
                     
                     # GKD: Compute distillation loss using log_probs (memory efficient)
+                    # Check ALL required parameters to avoid accidental computation in compute_log_prob
                     distill_loss = None
-                    if teacher_topk_logps is not None:
+                    if (teacher_topk_logps is not None and teacher_topk_indices is not None 
+                        and response_mask_for_distill is not None):
                         from verl.trainer.gkd.distill_loss import compute_sparse_kl_divergence_from_logprobs
                         distill_loss = compute_sparse_kl_divergence_from_logprobs(
                             student_log_probs=log_probs,
