@@ -125,11 +125,11 @@ class DataParallelPRIMERewardModel:
 
             else:
                 rm_output_logits = output.logits
-                rm_log_prob = torch.nn.functional.log_softmax(
-                    rm_output_logits[:, :-1, :], dim=-1
-                )  # (batch_size, seq_length, vocab_size)
-                rm_log_labels = rm_log_prob.gather(dim=-1, index=micro_batch["input_ids"][:, 1:].unsqueeze(-1)).squeeze(
-                    -1
+                # Use memory-efficient logprobs_from_logits instead of log_softmax to avoid OOM
+                # This avoids creating a full (batch_size, seq_length, vocab_size) tensor
+                rm_log_labels = verl_F.logprobs_from_logits(
+                    logits=rm_output_logits[:, :-1, :],
+                    labels=micro_batch["input_ids"][:, 1:]
                 )  # (batch, seq_length)
 
         if self.ref_module is not None:
@@ -173,12 +173,12 @@ class DataParallelPRIMERewardModel:
 
                     else:
                         ref_output_logits = ref_output.logits
-                        ref_log_prob = torch.nn.functional.log_softmax(
-                            ref_output_logits[:, :-1, :], dim=-1
-                        )  # (batch_size, seq_length, vocab_size)
-                        ref_log_labels = ref_log_prob.gather(
-                            dim=-1, index=micro_batch["input_ids"][:, 1:].unsqueeze(-1)
-                        ).squeeze(-1)  # (batch, seq_length)
+                        # Use memory-efficient logprobs_from_logits instead of log_softmax to avoid OOM
+                        # This avoids creating a full (batch_size, seq_length, vocab_size) tensor
+                        ref_log_labels = verl_F.logprobs_from_logits(
+                            logits=ref_output_logits[:, :-1, :],
+                            labels=micro_batch["input_ids"][:, 1:]
+                        )  # (batch, seq_length)
 
         else:
             ref_log_labels = micro_batch["old_log_probs"]
