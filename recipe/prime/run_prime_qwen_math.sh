@@ -80,4 +80,4 @@ python3 -m recipe.prime.main_prime \
     trainer.nnodes=1 \
     trainer.save_freq=64 \
     trainer.test_freq=64 \
-    trainer.total_epochs=15 $@
+    trainer.total_epochs=1 $@
