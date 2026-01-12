@@ -28,6 +28,7 @@ actor_rollout_ref:
 
 reward_model:
   enable: True
+  use_reward_loop: False
   strategy: fsdp
   model:
     ref_path: ${reward_model.model.path}
