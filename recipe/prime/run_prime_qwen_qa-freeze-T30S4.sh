@@ -33,8 +33,8 @@ python3 -m recipe.prime.main_prime \
     data.val_files="$test_files" \
     data.train_batch_size=128 \
     data.val_batch_size=200 \
-    data.max_prompt_length=1024 \
-    data.max_response_length=10240 \
+    data.max_prompt_length=512 \
+    data.max_response_length=12800 \
     data.return_raw_chat=True \
     data.filter_overlong_prompts=True \
     data.filter_accuracy=True \
