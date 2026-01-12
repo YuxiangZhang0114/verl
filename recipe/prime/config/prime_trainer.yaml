@@ -56,7 +56,7 @@ reward_model:
       lr_scheduler_type: constant
       total_training_steps: -1  # must be overridden by program
       weight_decay: 0.
-      clip_grad: 10.0
+      grad_clip: 10.0
       override_optimizer_config: null
     beta_train: 0.05
     loss_type: ce # currently only supports ce loss
