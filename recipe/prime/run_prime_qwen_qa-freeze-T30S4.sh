@@ -1,10 +1,6 @@
 set -x
 
-# PyTorch 内存优化
-export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
-# 减少内存碎片
-export CUDA_LAUNCH_BLOCKING=0
 # gsm8k_train_path=$HOME/data/gsm8k/train.parquet
 # gsm8k_test_path=$HOME/data/gsm8k/test.parquet
 export WANDB_API_KEY="0559d52399bc5d3fd8e373bb4b8b6e8db054b9f7"
