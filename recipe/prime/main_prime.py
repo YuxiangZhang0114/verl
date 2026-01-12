@@ -71,10 +71,18 @@ def main_task(config, compute_score=None):
     OmegaConf.resolve(config)
 
     # define worker classes
+    # Check if async mode is enabled
+    rollout_mode = config.actor_rollout_ref.rollout.get("mode", "sync")
+    use_async = rollout_mode == "async"
+
     if config.actor_rollout_ref.actor.strategy in {"fsdp", "fsdp2"}:
         assert config.critic.strategy in {"fsdp", "fsdp2"}
         from verl.single_controller.ray import RayWorkerGroup
-        from verl.workers.fsdp_workers import ActorRolloutRefWorker
+
+        if use_async:
+            from verl.workers.fsdp_workers import AsyncActorRolloutRefWorker as ActorRolloutRefWorker
+        else:
+            from verl.workers.fsdp_workers import ActorRolloutRefWorker
 
         ray_worker_group_cls = RayWorkerGroup
 
