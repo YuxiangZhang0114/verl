@@ -58,7 +58,7 @@ python3 -m recipe.prime.main_prime \
     actor_rollout_ref.actor.fsdp_config.optimizer_offload=True \
     actor_rollout_ref.rollout.multi_turn.tool_config_path="$TOOL_CONFIG" \
     actor_rollout_ref.rollout.multi_turn.enable=True \
-    actor_rollout_ref.rollout.multi_turn.max_assistant_turns=12 \
+    actor_rollout_ref.rollout.multi_turn.max_assistant_turns=15 \
     actor_rollout_ref.rollout.multi_turn.format=hermes \
     actor_rollout_ref.actor.use_kl_loss=False \
     actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu=1 \
