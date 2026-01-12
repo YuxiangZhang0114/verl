@@ -13,8 +13,8 @@ train_files="['$gsm8k_train_path', '$math_train_path']"
 test_files="['$gsm8k_test_path', '$math_test_path']"
 
 # model_path=PRIME-RL/Eurus-2-7B-SFT
-model_path=Qwen/Qwen3-4B-Instruct
-reward_model_path=Qwen/Qwen3-4B-Instruct
+model_path=Qwen/Qwen3-4B-Instruct-2507
+reward_model_path=Qwen/Qwen3-4B-Instruct-2507
 
 
 # TRAIN_DATA="$PROJECT_DIR/data/asearcher_train/train.parquet"
