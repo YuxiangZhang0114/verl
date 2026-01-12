@@ -5,9 +5,9 @@ set -x
 # gsm8k_test_path=$HOME/data/gsm8k/test.parquet
 export WANDB_API_KEY="0559d52399bc5d3fd8e373bb4b8b6e8db054b9f7"
 
-# download from https://huggingface.co/datasets/PRIME-RL/Eurus-2-RL-Data
-math_train_path=$HOME/data/math/train.parquet
-math_test_path=$HOME/data/math/test.parquet
+# # download from https://huggingface.co/datasets/PRIME-RL/Eurus-2-RL-Data
+# math_train_path=$HOME/data/math/train.parquet
+# math_test_path=$HOME/data/math/test.parquet
 
 # train_files="['$gsm8k_train_path', '$math_train_path']"
 # test_files="['$gsm8k_test_path', '$math_test_path']"
@@ -32,32 +32,36 @@ save_path="/mnt/workspace/checkpoints/search_r1_like_grpo_sglang_qwen3-4b-instru
 python3 -m recipe.prime.main_prime \
     data.train_files="$train_files" \
     data.val_files="$test_files" \
-    data.train_batch_size=64 \
-    data.val_batch_size=6312 \
-    data.max_prompt_length=1024 \
-    data.max_response_length=4096 \
+    data.train_batch_size=128 \
+    data.val_batch_size=200 \
+    data.max_prompt_length=2048 \
+    data.max_response_length=20480 \
+    data.return_raw_chat=True \
     data.filter_overlong_prompts=True \
     data.filter_accuracy=True \
     data.accuracy_lower_bound=0.0 \
     data.accuracy_upper_bound=1.0 \
     data.oversample_factor=1 \
     actor_rollout_ref.model.path=$model_path \
-    actor_rollout_ref.actor.optim.lr=5e-7 \
+    actor_rollout_ref.actor.optim.lr=1e-6 \
     actor_rollout_ref.model.use_remove_padding=True \
-    actor_rollout_ref.actor.ppo_mini_batch_size=64 \
+    actor_rollout_ref.actor.ppo_mini_batch_size=128 \
     actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=1 \
     actor_rollout_ref.model.enable_gradient_checkpointing=True \
     actor_rollout_ref.actor.fsdp_config.param_offload=True \
     actor_rollout_ref.actor.fsdp_config.optimizer_offload=True \
     actor_rollout_ref.rollout.multi_turn.tool_config_path="$TOOL_CONFIG" \
+    actor_rollout_ref.rollout.multi_turn.enable=True \
+    actor_rollout_ref.rollout.multi_turn.max_assistant_turns=16 \
+    actor_rollout_ref.rollout.multi_turn.format=hermes \
     actor_rollout_ref.actor.use_kl_loss=False \
-    actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu=32 \
+    actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu=2 \
     actor_rollout_ref.rollout.tensor_model_parallel_size=2 \
     actor_rollout_ref.rollout.name=sglang \
     actor_rollout_ref.rollout.mode=async \
     actor_rollout_ref.rollout.gpu_memory_utilization=0.5 \
     actor_rollout_ref.rollout.n=5 \
-    actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu=32 \
+    actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu=2 \
     actor_rollout_ref.rollout.agent.default_agent_loop=tool_agent \
     algorithm.adv_estimator=grpo \
     algorithm.use_kl_in_reward=False \
@@ -73,10 +77,10 @@ python3 -m recipe.prime.main_prime \
     reward_model.mini_batch_size=64 \
     trainer.val_before_train=False \
     trainer.logger='["console","wandb"]' \
-    trainer.project_name='prime_example' \
-    trainer.experiment_name='Qwen3-4B-Instruct-gsm8k' \
+    trainer.project_name='search_r1_like_grpo_sglang' \
+    trainer.experiment_name='qwen3-4b-instruct-grpo-sglang-async-toolagent-n5-8gpu-freeze-T4S4' \
     trainer.n_gpus_per_node=8 \
     trainer.nnodes=1 \
-    trainer.save_freq=64 \
-    trainer.test_freq=64 \
+    trainer.save_freq=80 \
+    trainer.test_freq=10 \
     trainer.total_epochs=15 $@
