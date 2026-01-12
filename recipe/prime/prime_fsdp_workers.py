@@ -219,21 +219,29 @@ class PRIMERewardModelWorker(Worker):
             cpu_offload=None,
         )
 
-        reward_optimizer = build_optimizer(reward_module.parameters(), config.model.optim)
+        # Only create optimizer and scheduler if reward model will be updated
+        update_style = config.model.get("update", "none")
+        if update_style == "none":
+            reward_optimizer = None
+            reward_lr_scheduler = None
+            if self.rank == 0:
+                print("Reward model update=none, skipping optimizer and scheduler initialization")
+        else:
+            reward_optimizer = build_optimizer(reward_module.parameters(), config.model.optim)
 
-        total_steps = config.model.optim.get("total_training_steps", 0)
-        num_warmup_steps = int(config.model.optim.get("lr_warmup_steps", -1))
-        if num_warmup_steps < 0:
-            num_warmup_steps_ratio = config.model.optim.get("lr_warmup_steps_ratio", 0.0)
-            num_warmup_steps = int(num_warmup_steps_ratio * total_steps)
+            total_steps = config.model.optim.get("total_training_steps", 0)
+            num_warmup_steps = int(config.model.optim.get("lr_warmup_steps", -1))
+            if num_warmup_steps < 0:
+                num_warmup_steps_ratio = config.model.optim.get("lr_warmup_steps_ratio", 0.0)
+                num_warmup_steps = int(num_warmup_steps_ratio * total_steps)
 
-        print(f"Total steps: {total_steps}, num_warmup_steps: {num_warmup_steps}")
+            print(f"Total steps: {total_steps}, num_warmup_steps: {num_warmup_steps}")
 
-        from verl.utils.torch_functional import get_constant_schedule_with_warmup
+            from verl.utils.torch_functional import get_constant_schedule_with_warmup
 
-        reward_lr_scheduler = get_constant_schedule_with_warmup(
-            optimizer=reward_optimizer, num_warmup_steps=num_warmup_steps
-        )
+            reward_lr_scheduler = get_constant_schedule_with_warmup(
+                optimizer=reward_optimizer, num_warmup_steps=num_warmup_steps
+            )
 
         return reward_module, ref_module, reward_optimizer, reward_lr_scheduler
 
@@ -251,7 +259,7 @@ class PRIMERewardModelWorker(Worker):
         if self._is_offload_param:
             offload_fsdp_model_to_cpu(self.reward_module)
             offload_fsdp_model_to_cpu(self.ref_module)
-        if self._is_offload_optimizer:
+        if self._is_offload_optimizer and self.reward_optimizer is not None:
             offload_fsdp_optimizer(optimizer=self.reward_optimizer)
 
         self.rm = DataParallelPRIMERewardModel(
@@ -306,11 +314,13 @@ class PRIMERewardModelWorker(Worker):
 
     @register(dispatch_mode=Dispatch.DP_COMPUTE_PROTO)
     def update_rm(self, data: DataProto):
+        if self.reward_optimizer is None:
+            raise RuntimeError("Cannot update reward model: optimizer is None. Set reward_model.model.update to a value other than 'none' to enable updates.")
         data = data.to(get_device_name())
         if self._is_offload_param:
             load_fsdp_model_to_gpu(self.ref_module)
             load_fsdp_model_to_gpu(self.reward_module)
-        if self._is_offload_optimizer:
+        if self._is_offload_optimizer and self.reward_optimizer is not None:
             load_fsdp_optimizer(optimizer=self.reward_optimizer, device_id=get_device_id())
 
         # perform forward computation
@@ -319,9 +329,10 @@ class PRIMERewardModelWorker(Worker):
 
             rm_scores, metrics = self.rm.update_rm(data=data)
 
-            self.reward_lr_scheduler.step()
-            lr = self.reward_lr_scheduler.get_last_lr()[0]
-            metrics["rm/lr"] = lr
+            if self.reward_lr_scheduler is not None:
+                self.reward_lr_scheduler.step()
+                lr = self.reward_lr_scheduler.get_last_lr()[0]
+                metrics["rm/lr"] = lr
 
             prompt_length = data.batch["prompts"].shape[-1]
             response_mask = data.batch["attention_mask"][:, prompt_length:]
@@ -341,7 +352,7 @@ class PRIMERewardModelWorker(Worker):
         if self._is_offload_param:
             offload_fsdp_model_to_cpu(self.reward_module)
             offload_fsdp_model_to_cpu(self.ref_module)
-        if self._is_offload_optimizer:
+        if self._is_offload_optimizer and self.reward_optimizer is not None:
             offload_fsdp_optimizer(optimizer=self.reward_optimizer)
         output = output.to("cpu")
         return output
