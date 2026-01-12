@@ -87,7 +87,7 @@ python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.ref.ulysses_sequence_parallel_size=${sp_size} \
     algorithm.use_kl_in_reward=False \
     trainer.critic_warmup=0 \
-    trainer.val_before_train=True \
+    trainer.val_before_train=False \
     trainer.logger='["console","wandb"]' \
     trainer.project_name='search_r1_like_grpo_sglang' \
     trainer.experiment_name='qwen3-4b-instruct-grpo-sglang-async-toolagent-n5-8gpu_asearcher' \

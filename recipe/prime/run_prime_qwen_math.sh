@@ -9,8 +9,8 @@ export WANDB_API_KEY="0559d52399bc5d3fd8e373bb4b8b6e8db054b9f7"
 math_train_path=$HOME/data/math/train.parquet
 math_test_path=$HOME/data/math/test.parquet
 
-train_files="['$gsm8k_train_path', '$math_train_path']"
-test_files="['$gsm8k_test_path', '$math_test_path']"
+train_files="['$math_train_path']"
+test_files="['$math_test_path']"
 
 # model_path=PRIME-RL/Eurus-2-7B-SFT
 model_path=Qwen/Qwen3-4B-Instruct-2507
