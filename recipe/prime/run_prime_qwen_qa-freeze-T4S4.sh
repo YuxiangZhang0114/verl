@@ -34,7 +34,7 @@ python3 -m recipe.prime.main_prime \
     data.train_batch_size=16 \
     data.val_batch_size=200 \
     data.max_prompt_length=1024 \
-    data.max_response_length=8192 \
+    data.max_response_length=4096 \
     data.return_raw_chat=True \
     data.filter_overlong_prompts=True \
     data.filter_accuracy=True \
@@ -72,7 +72,7 @@ python3 -m recipe.prime.main_prime \
     reward_model.model.beta_train=0.05 \
     reward_model.model.optim.lr=1e-6 \
     reward_model.model.optim.grad_clip=10.0 \
-    +reward_model.model.ulysses_sequence_parallel_size=2 \
+    reward_model.ulysses_sequence_parallel_size=2 \
     reward_model.model.input_tokenizer=null \
     reward_model.mini_batch_size=1 \
     trainer.val_before_train=False \
