@@ -72,7 +72,7 @@ python3 -m recipe.prime.main_prime \
     reward_model.model.beta_train=0.05 \
     reward_model.model.optim.lr=1e-6 \
     reward_model.model.optim.grad_clip=10.0 \
-    +reward_model.model.ulysses_sequence_parallel_size=4 \
+    +reward_model.model.ulysses_sequence_parallel_size=2 \
     reward_model.model.input_tokenizer=null \
     reward_model.mini_batch_size=2 \
     trainer.val_before_train=False \
