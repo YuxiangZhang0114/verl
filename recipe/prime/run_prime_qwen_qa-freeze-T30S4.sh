@@ -71,7 +71,7 @@ python3 -m recipe.prime.main_prime \
     algorithm.kl_ctrl.kl_coef=0.001 \
     reward_model.model.path=$reward_model_path \
     reward_model.micro_batch_size_per_gpu=1 \
-    reward_model.model.update=none \
+    reward_model.model.update=after \
     reward_model.model.beta_train=0.05 \
     reward_model.model.optim.lr=1e-6 \
     reward_model.model.optim.grad_clip=10.0 \
