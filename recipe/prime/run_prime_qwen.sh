@@ -3,6 +3,7 @@ set -x
 
 # gsm8k_train_path=$HOME/data/gsm8k/train.parquet
 # gsm8k_test_path=$HOME/data/gsm8k/test.parquet
+export WANDB_API_KEY="0559d52399bc5d3fd8e373bb4b8b6e8db054b9f7"
 
 # download from https://huggingface.co/datasets/PRIME-RL/Eurus-2-RL-Data
 math_train_path=$HOME/data/math/train.parquet
