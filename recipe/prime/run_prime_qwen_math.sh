@@ -1,23 +1,23 @@
 set -x
 
 
-# gsm8k_train_path=$HOME/data/gsm8k/train.parquet
-# gsm8k_test_path=$HOME/data/gsm8k/test.parquet
+gsm8k_train_path=$HOME/data/gsm8k/train.parquet
+gsm8k_test_path=$HOME/data/gsm8k/test.parquet
 
 # download from https://huggingface.co/datasets/PRIME-RL/Eurus-2-RL-Data
 math_train_path=$HOME/data/math/train.parquet
 math_test_path=$HOME/data/math/test.parquet
 
-# train_files="['$gsm8k_train_path', '$math_train_path']"
-# test_files="['$gsm8k_test_path', '$math_test_path']"
+train_files="['$gsm8k_train_path', '$math_train_path']"
+test_files="['$gsm8k_test_path', '$math_test_path']"
 
 # model_path=PRIME-RL/Eurus-2-7B-SFT
 model_path=Qwen/Qwen3-4B-Instruct
 reward_model_path=Qwen/Qwen3-4B-Instruct
 
 
-TRAIN_DATA="$PROJECT_DIR/data/asearcher_train/train.parquet"
-VAL_DATA="$PROJECT_DIR/data/hotpotqa_hard_train/validation.parquet"
+# TRAIN_DATA="$PROJECT_DIR/data/asearcher_train/train.parquet"
+# VAL_DATA="$PROJECT_DIR/data/hotpotqa_hard_train/validation.parquet"
 
 train_files="['$TRAIN_DATA']"
 test_files="['$VAL_DATA']"
@@ -53,7 +53,7 @@ python3 -m recipe.prime.main_prime \
     actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu=32 \
     actor_rollout_ref.rollout.tensor_model_parallel_size=1 \
     actor_rollout_ref.rollout.name=sglang \
-    actor_rollout_ref.rollout.mode=async \
+    actor_rollout_ref.rollout.mode=sync \
     actor_rollout_ref.rollout.gpu_memory_utilization=0.5 \
     actor_rollout_ref.rollout.n=5 \
     actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu=32 \
