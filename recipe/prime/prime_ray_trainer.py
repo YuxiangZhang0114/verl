@@ -96,8 +96,8 @@ def compute_advantage(data: DataProto, adv_estimator, config):
         # For GRPO, returns are typically just the rewards
         returns = rewards
         
-        # Expand advantages to token level (masked)
-        # We need to broadcast the sequence-level advantage to all valid tokens in the response
+        # Expand advantages and returns to token level (masked)
+        # We need to broadcast the sequence-level values to all valid tokens in the response
         responses = data.batch["responses"]
         response_length = responses.size(-1)
         attention_mask = data.batch["attention_mask"]
@@ -105,12 +105,14 @@ def compute_advantage(data: DataProto, adv_estimator, config):
         
         # Broadcast advantages: [total_batch] -> [total_batch, response_len]
         advantages_broadcast = advantages.unsqueeze(-1).expand_as(response_mask)
+        returns_broadcast = returns.unsqueeze(-1).expand_as(response_mask)
         
         # Apply mask
         advantages_masked = advantages_broadcast * response_mask
+        returns_masked = returns_broadcast * response_mask
         
         data.batch["advantages"] = advantages_masked
-        data.batch["returns"] = returns
+        data.batch["returns"] = returns_masked
         
     else:
         raise NotImplementedError
