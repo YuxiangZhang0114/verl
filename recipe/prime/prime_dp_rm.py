@@ -46,7 +46,7 @@ class DataParallelPRIMERewardModel:
         self.use_fused_kernels = self.config.model.get("use_fused_kernels", False)
         print(f"Reward model use_fused_kernels={self.use_fused_kernels}")
 
-        self.ulysses_sequence_parallel_size = self.config.get("ulysses_sequence_parallel_size", 1)
+        self.ulysses_sequence_parallel_size = self.config.get("ulysses_sequence_parallel_size", 2)
         print(f"Reward model ulysses_sequence_parallel_size={self.ulysses_sequence_parallel_size}"*100)
 
 
@@ -251,6 +251,7 @@ class DataParallelPRIMERewardModel:
         self.reward_module.eval()
         self.ref_module.eval()
         micro_batch_size = data.meta_info["micro_batch_size"]
+        print(f"micro_batch_size={micro_batch_size}"*100)
         select_keys = ["responses", "input_ids", "attention_mask", "position_ids", "acc"]
         batch = data.select(batch_keys=select_keys).batch
         use_dynamic_bsz = data.meta_info["use_dynamic_bsz"]
