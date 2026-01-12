@@ -252,6 +252,8 @@ class DataParallelPRIMERewardModel:
         self.ref_module.eval()
         micro_batch_size = data.meta_info["micro_batch_size"]
         print(f"micro_batch_size={micro_batch_size}"*100)
+        micro_batch_size = 1
+
         select_keys = ["responses", "input_ids", "attention_mask", "position_ids", "acc"]
         batch = data.select(batch_keys=select_keys).batch
         use_dynamic_bsz = data.meta_info["use_dynamic_bsz"]
