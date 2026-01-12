@@ -474,6 +474,7 @@ class RayPRIMETrainer(RayPPOTrainer):
                 batch: DataProto = DataProto.from_single_dict(batch_dict)
 
                 # pop those keys for generation
+                print(f"batch: {batch}")
                 gen_batch = batch.pop(batch_keys=["input_ids", "attention_mask", "position_ids"])
                 gen_batch_output = gen_batch.repeat(
                     repeat_times=self.config.actor_rollout_ref.rollout.n, interleave=True
