@@ -237,26 +237,6 @@ class RayPRIMETrainer(RayPPOTrainer):
         )
 
         self.use_critic = False
-        self.async_rollout_mode = True
-
-        # Support custom AgentLoopManager via config
-        manager_class_fqn = self.config.actor_rollout_ref.rollout.get("agent", {}).get("agent_loop_manager_class")
-        if manager_class_fqn:
-            from verl.utils.import_utils import load_class_from_fqn
-            AgentLoopManager = load_class_from_fqn(manager_class_fqn, "AgentLoopManager")
-        else:
-            from verl.experimental.agent_loop import AgentLoopManager
-
-        if self.config.reward_model.enable and self.config.reward_model.enable_resource_pool:
-            rm_resource_pool = self.resource_pool_manager.get_resource_pool(Role.RewardModel)
-        else:
-            rm_resource_pool = None
-
-        self.async_rollout_manager = AgentLoopManager(
-            config=self.config,
-            worker_group=self.actor_rollout_wg,
-            rm_resource_pool=rm_resource_pool,
-        )
 
     def _create_dataloader(self, *args, **kwargs):
         from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
