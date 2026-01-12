@@ -41,12 +41,12 @@ class DataParallelPRIMERewardModel:
         self.reward_module = reward_module
         self.ref_module = ref_module
         self.reward_optimizer = reward_optimizer
-        self.use_remove_padding = self.config.model.get("use_remove_padding", False)
+        self.use_remove_padding = self.config.model.get("use_remove_padding", True)
         print(f"Reward model use_remove_padding={self.use_remove_padding}")
         self.use_fused_kernels = self.config.model.get("use_fused_kernels", False)
         print(f"Reward model use_fused_kernels={self.use_fused_kernels}")
 
-        self.ulysses_sequence_parallel_size = self.config.get("ulysses_sequence_parallel_size", 2)
+        self.ulysses_sequence_parallel_size = self.config.get("ulysses_sequence_parallel_size", 4)
         # print(f"Reward model ulysses_sequence_parallel_size={self.ulysses_sequence_parallel_size}"*100)
 
 
@@ -94,6 +94,7 @@ class DataParallelPRIMERewardModel:
             if self.use_fused_kernels:
                 rm_log_labels = output.log_probs.squeeze(0)  # (total_nnz,)
                 rm_log_labels = rm_log_labels.to(torch.float32)
+                del output
 
             else:
                 rm_output_logits = output.logits.squeeze(0)
@@ -101,6 +102,8 @@ class DataParallelPRIMERewardModel:
                     logits=rm_output_logits,
                     labels=input_ids_rmpad_rolled,
                 )
+                # Free large logits tensor immediately
+                del rm_output_logits, output
 
             if self.ulysses_sequence_parallel_size > 1:
                 rm_log_labels = gather_outputs_and_unpad(
@@ -122,6 +125,7 @@ class DataParallelPRIMERewardModel:
             if self.use_fused_kernels:
                 rm_log_labels = output.log_probs[:, :-1]  # (bsz, seq_length)
                 rm_log_labels = rm_log_labels.to(torch.float32)
+                del output
 
             else:
                 rm_output_logits = output.logits
@@ -131,6 +135,8 @@ class DataParallelPRIMERewardModel:
                     logits=rm_output_logits[:, :-1, :],
                     labels=micro_batch["input_ids"][:, 1:]
                 )  # (batch, seq_length)
+                # Free large logits tensor immediately to save GPU memory
+                del rm_output_logits, output
 
         if self.ref_module is not None:
             # do not have to pad again
@@ -146,12 +152,15 @@ class DataParallelPRIMERewardModel:
                     if self.use_fused_kernels:
                         ref_log_labels = ref_output.log_probs.squeeze(0)  # (total_nnz,)
                         ref_log_labels = ref_log_labels.to(torch.float32)
+                        del ref_output
 
                     else:
                         ref_output_logits = ref_output.logits.squeeze(0)
                         ref_log_labels = verl_F.logprobs_from_logits(
                             logits=ref_output_logits, labels=input_ids_rmpad_rolled
                         )
+                        # Free large logits tensor immediately
+                        del ref_output_logits, ref_output
 
                     ref_log_labels = gather_outputs_and_unpad(
                         ref_log_labels, gather_dim=0, unpad_dim=0, padding_size=pad_size
@@ -170,6 +179,7 @@ class DataParallelPRIMERewardModel:
                     if self.use_fused_kernels:
                         ref_log_labels = ref_output.log_probs[:, :-1]  # (batch_size, seq_length)
                         ref_log_labels = ref_log_labels.to(torch.float32)
+                        del ref_output
 
                     else:
                         ref_output_logits = ref_output.logits
@@ -179,6 +189,8 @@ class DataParallelPRIMERewardModel:
                             logits=ref_output_logits[:, :-1, :],
                             labels=micro_batch["input_ids"][:, 1:]
                         )  # (batch, seq_length)
+                        # Free large logits tensor immediately to save GPU memory
+                        del ref_output_logits, ref_output
 
         else:
             ref_log_labels = micro_batch["old_log_probs"]
