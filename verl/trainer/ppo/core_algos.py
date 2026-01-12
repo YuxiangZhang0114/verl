@@ -901,6 +901,7 @@ def compute_policy_loss_vanilla(
     loss_agg_mode: str = "token-mean",
     config: Optional[ActorConfig] = None,
     rollout_is_weights: torch.Tensor | None = None,
+    kl_losses: torch.Tensor | None = None,  # Unused, but accepted for compatibility
 ) -> tuple[torch.Tensor, dict[str, Any]]:
     """
     Compute the clipped policy objective and related metrics for PPO.
