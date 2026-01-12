@@ -10,7 +10,7 @@ math_train_path=$HOME/data/math/train.parquet
 math_test_path=$HOME/data/math/test.parquet
 
 train_files="['$math_train_path']"
-test_files="['$math_test_path']"
+test_files="['$gsm8k_test_path']"
 
 # model_path=PRIME-RL/Eurus-2-7B-SFT
 model_path=Qwen/Qwen3-4B-Instruct-2507
@@ -53,7 +53,7 @@ python3 -m recipe.prime.main_prime \
     actor_rollout_ref.actor.fsdp_config.optimizer_offload=True \
     actor_rollout_ref.actor.use_kl_loss=False \
     actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu=32 \
-    actor_rollout_ref.rollout.tensor_model_parallel_size=1 \
+    actor_rollout_ref.rollout.tensor_model_parallel_size=2 \
     actor_rollout_ref.rollout.name=sglang \
     actor_rollout_ref.rollout.mode=async \
     actor_rollout_ref.rollout.gpu_memory_utilization=0.5 \
