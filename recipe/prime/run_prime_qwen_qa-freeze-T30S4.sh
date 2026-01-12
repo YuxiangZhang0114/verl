@@ -35,7 +35,7 @@ save_path="/mnt/workspace/checkpoints/search_r1_like_grpo_sglang_qwen3-4b-instru
 python3 -m recipe.prime.main_prime \
     data.train_files="$train_files" \
     data.val_files="$test_files" \
-    data.train_batch_size=128 \
+    data.train_batch_size=64 \
     data.val_batch_size=200 \
     data.max_prompt_length=1024 \
     data.max_response_length=10240 \
@@ -50,7 +50,7 @@ python3 -m recipe.prime.main_prime \
     actor_rollout_ref.model.path=$model_path \
     actor_rollout_ref.actor.optim.lr=1e-6 \
     actor_rollout_ref.model.use_remove_padding=True \
-    actor_rollout_ref.actor.ppo_mini_batch_size=128 \
+    actor_rollout_ref.actor.ppo_mini_batch_size=64 \
     actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=1 \
     actor_rollout_ref.model.enable_gradient_checkpointing=True \
     actor_rollout_ref.actor.fsdp_config.param_offload=True \
