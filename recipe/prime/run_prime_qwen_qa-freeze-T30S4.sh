@@ -80,7 +80,7 @@ python3 -m recipe.prime.main_prime \
     trainer.val_before_train=False \
     trainer.logger='["console","wandb"]' \
     trainer.project_name='search_r1_like_grpo_sglang' \
-    trainer.experiment_name='qwen3-4b-instruct-grpo-sglang-async-toolagent-n5-8gpu-freeze-T4S4' \
+    trainer.experiment_name='qwen3-4b-instruct-grpo-sglang-async-toolagent-n5-8gpu-prime-T4S4' \
     trainer.n_gpus_per_node=8 \
     trainer.nnodes=1 \
     trainer.save_freq=80 \
