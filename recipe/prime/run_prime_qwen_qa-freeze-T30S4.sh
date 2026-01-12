@@ -34,7 +34,9 @@ python3 -m recipe.prime.main_prime \
     data.train_batch_size=128 \
     data.val_batch_size=200 \
     data.max_prompt_length=1024 \
-    data.max_response_length=16384 \
+    data.max_response_length=10240 \
+    actor_rollout_ref.actor.ulysses_sequence_parallel_size=4 \
+    actor_rollout_ref.ref.ulysses_sequence_parallel_size=4 \
     data.return_raw_chat=True \
     data.filter_overlong_prompts=True \
     data.filter_accuracy=True \
@@ -51,7 +53,7 @@ python3 -m recipe.prime.main_prime \
     actor_rollout_ref.actor.fsdp_config.optimizer_offload=True \
     actor_rollout_ref.rollout.multi_turn.tool_config_path="$TOOL_CONFIG" \
     actor_rollout_ref.rollout.multi_turn.enable=True \
-    actor_rollout_ref.rollout.multi_turn.max_assistant_turns=16 \
+    actor_rollout_ref.rollout.multi_turn.max_assistant_turns=12 \
     actor_rollout_ref.rollout.multi_turn.format=hermes \
     actor_rollout_ref.actor.use_kl_loss=False \
     actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu=1 \
