@@ -47,6 +47,8 @@ class DataParallelPRIMERewardModel:
         print(f"Reward model use_fused_kernels={self.use_fused_kernels}")
 
         self.ulysses_sequence_parallel_size = self.config.get("ulysses_sequence_parallel_size", 1)
+        print(f"Reward model ulysses_sequence_parallel_size={self.ulysses_sequence_parallel_size}"*100)
+
 
     def _forward_micro_batch(self, micro_batch, prompt_length):
         input_ids = micro_batch["input_ids"]
