@@ -100,7 +100,8 @@ EVALUATION INSTRUCTIONS:
 - Do NOT accept matches if there is any ambiguity, incompleteness, or factual discrepancy
 - REJECT any prediction that is just a generic word like "answer", "solution", or similar placeholder text
 - Consider context: if the question requires a specific format or precision, both answers must meet that requirement
-- Return ONLY "YES" if the answers match, or "NO" if they do not match,
+- When in DOUBT or UNCERTAIN, you MUST return "NO" - only return "YES" if you are CERTAIN the answers match
+- Return ONLY "YES" if you are CERTAIN the answers match, or "NO" if they do not match or if you are uncertain
 - Do not provide explanations, justifications, or additional text - only "YES" or "NO"
 
 PREDICTED ANSWER: 
@@ -118,7 +119,7 @@ Do these answers match with each other? Respond with only "YES" or "NO":"""
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a precise and rigorous answer matching evaluator. You must be strict and only return 'YES' or 'NO'."
+                    "content": "You are a precise and rigorous answer matching evaluator. You must be strict and conservative. When in doubt or uncertain, you MUST return 'NO'. Only return 'YES' if you are certain the answers match. Only return 'YES' or 'NO'."
                 },
                 {
                     "role": "user",
@@ -130,7 +131,12 @@ Do these answers match with each other? Respond with only "YES" or "NO":"""
         )
         
         result = response.choices[0].message.content.strip().upper()
-        return 1 if "YES" in result and "NO" not in result else 0
+        # Be conservative: only accept if result clearly starts with "YES" and contains no "NO"
+        # This ensures we only match when the LLM is certain
+        if result.startswith("YES") and "NO" not in result:
+            return 1
+        else:
+            return 0
     except Exception as e:
         # If LLM matching fails, return 0 (no match)
 
