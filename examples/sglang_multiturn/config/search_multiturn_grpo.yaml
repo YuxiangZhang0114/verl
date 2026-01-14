@@ -11,7 +11,7 @@ data:
   max_response_length: 1024
   train_batch_size: 256
   return_raw_chat: True
-  shuffle: False
+  shuffle: T
 
 actor_rollout_ref:
   hybrid_engine: True
