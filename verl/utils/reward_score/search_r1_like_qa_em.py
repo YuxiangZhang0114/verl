@@ -103,11 +103,14 @@ EVALUATION INSTRUCTIONS:
 - Return ONLY "YES" if the answers match, or "NO" if they do not match,
 - Do not provide explanations, justifications, or additional text - only "YES" or "NO"
 
-PREDICTED ANSWER: {prediction}
+PREDICTED ANSWER: 
+{prediction}
 
-GOLDEN ANSWER: {golden_answer}
 
-Do these answers match? Respond with only "YES" or "NO":"""
+GOLDEN ANSWER: 
+{golden_answer}
+
+Do these answers match with each other? Respond with only "YES" or "NO":"""
     print(prompt)
     try:
         response = client.chat.completions.create(
