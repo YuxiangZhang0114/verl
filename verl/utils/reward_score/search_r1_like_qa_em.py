@@ -45,8 +45,8 @@ def normalize_answer(s):
 
 
 # LLM matching configuration
-LLM_MATCH_BASE_URL = os.environ.get("LLM_MATCH_BASE_URL", "http://10.244.209.173:8880/v1")
-LLM_MATCH_MODEL = os.environ.get("LLM_MATCH_MODEL", "Qwen/Qwen3-4B-Instruct-2507-FP8")
+LLM_MATCH_BASE_URL = os.environ.get("LLM_MATCH_BASE_URL", "http://localhost:9527/v1")
+LLM_MATCH_MODEL = os.environ.get("LLM_MATCH_MODEL", "evaluator")
 LLM_MATCH_ENABLED = os.environ.get("LLM_MATCH_ENABLED", "true").lower() == "true"
 
 # Global OpenAI client for LLM matching
@@ -158,11 +158,11 @@ def em_check(prediction, golden_answers):
             break
     
     # If exact match failed and LLM matching is enabled, try LLM matching
-    # if score == 0 and LLM_MATCH_ENABLED:
-    #     for golden_answer in golden_answers:
-    #         if llm_match(prediction, golden_answer):
-    #             score = 1
-    #             break
+    if score == 0 and LLM_MATCH_ENABLED:
+        for golden_answer in golden_answers:
+            if llm_match(prediction, golden_answer):
+                score = 1
+                break
     
     return score
 
