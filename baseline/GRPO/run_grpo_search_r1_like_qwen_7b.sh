@@ -42,7 +42,7 @@ python3 -m verl.trainer.main_ppo \
     --config-path="$CONFIG_PATH" \
     --config-name='search_multiturn_grpo' \
     algorithm.adv_estimator=grpo \
-    data.train_batch_size=64 \
+    data.train_batch_size=96 \
     data.val_batch_size=400 \
     data.max_prompt_length=1024 \
     data.max_response_length=20480 \
@@ -59,8 +59,8 @@ python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.actor.ppo_mini_batch_size=64 \
     actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=4 \
     actor_rollout_ref.actor.use_dynamic_bsz=True \
-    actor_rollout_ref.actor.ppo_max_token_len_per_gpu=23000 \
-    actor_rollout_ref.actor.use_kl_loss=False \
+    actor_rollout_ref.actor.ppo_max_token_len_per_gpu=22000 \
+    actor_rollout_ref.actor.use_kl_loss=True \
     actor_rollout_ref.actor.kl_loss_coef=0.001 \
     actor_rollout_ref.actor.kl_loss_type=low_var_kl \
     actor_rollout_ref.actor.entropy_coeff=0 \
