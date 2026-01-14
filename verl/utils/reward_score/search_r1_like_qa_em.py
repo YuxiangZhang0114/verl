@@ -93,10 +93,12 @@ CRITICAL EVALUATION CRITERIA:
 5. The answer must be factually correct and complete - partial or incorrect information does not match
 6. Synonyms are acceptable ONLY if they preserve the exact meaning without ambiguity
 7. Different units of measurement are NOT equivalent unless explicitly converted (e.g., "5 meters" vs "500 centimeters" is acceptable, but "5 meters" vs "5 feet" is not)
+8. Generic words like "answer", "solution", or placeholder text are NOT valid answers and should NEVER match
 
 EVALUATION INSTRUCTIONS:
 - Be STRICT and RIGOROUS in your assessment
 - Do NOT accept matches if there is any ambiguity, incompleteness, or factual discrepancy
+- REJECT any prediction that is just a generic word like "answer", "solution", or similar placeholder text
 - Consider context: if the question requires a specific format or precision, both answers must meet that requirement
 - Return ONLY "YES" if the answers match, or "NO" if they do not match,
 - Do not provide explanations, justifications, or additional text - only "YES" or "NO"
