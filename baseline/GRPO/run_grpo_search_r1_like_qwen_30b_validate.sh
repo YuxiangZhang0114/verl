@@ -96,7 +96,7 @@ python3 -m verl.trainer.main_ppo \
     trainer.val_before_train=True \
     trainer.logger='["console","wandb"]' \
     trainer.project_name='Teacher_interval' \
-    trainer.experiment_name='qwen2.5-7b-instruct-grpo_hotpotqa_f1_2048samples_preliminary' \
+    trainer.experiment_name='qwen3-30b-instruct-grpo_hotpotqa_f1_2048samples_preliminary' \
     trainer.n_gpus_per_node=4 \
     trainer.nnodes=1 \
     trainer.save_freq=-1 \
@@ -109,3 +109,8 @@ python3 -m verl.trainer.main_ppo \
     trainer.val_only=True \
     trainer.total_epochs=4 "$@"
 
+    # actor_rollout_ref.rollout.val_kwargs.temperature=0.6\
+    # actor_rollout_ref.rollout.val_kwargs.top_p=0.95 \
+    # actor_rollout_ref.rollout.val_kwargs.top_k=20 \
+    # actor_rollout_ref.rollout.val_kwargs.do_sample=True \
+    # actor_rollout_ref.rollout.val_kwargs.n=1 \

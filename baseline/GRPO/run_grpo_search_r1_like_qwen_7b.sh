@@ -97,7 +97,7 @@ python3 -m verl.trainer.main_ppo \
     trainer.logger='["console","wandb"]' \
     trainer.project_name='Teacher_interval' \
     trainer.experiment_name='qwen2.5-7b-instruct-grpo_hotpotqa_f1_2048samples_preliminary' \
-    trainer.n_gpus_per_node=4 \
+    trainer.n_gpus_per_node=4 \hf 
     trainer.nnodes=1 \
     trainer.save_freq=21 \
     trainer.test_freq=10 \
