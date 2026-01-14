@@ -106,5 +106,6 @@ python3 -m verl.trainer.main_ppo \
     data.val_files="$VAL_DATA" \
     actor_rollout_ref.rollout.multi_turn.tool_config_path="$TOOL_CONFIG" \
     trainer.total_training_steps=-1 \
+    trainer.val_only=True \
     trainer.total_epochs=4 "$@"
 
