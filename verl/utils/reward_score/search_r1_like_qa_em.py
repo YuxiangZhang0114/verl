@@ -111,7 +111,7 @@ GOLDEN ANSWER:
 {golden_answer}
 
 Do these answers match with each other? Respond with only "YES" or "NO":"""
-    print(prompt)
+    # print(prompt)
     try:
         response = client.chat.completions.create(
             model=LLM_MATCH_MODEL,
