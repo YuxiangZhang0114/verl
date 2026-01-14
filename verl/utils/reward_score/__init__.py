@@ -95,7 +95,6 @@ def default_compute_score(
         "searchR1_triviaqa",
         "searchR1_popqa",
         "searchR1_hotpotqa",
-        "searchR1_hotpotqa_hard",
         "searchR1_2wikimultihopqa",
         "searchR1_musique",
         "searchR1_bamboogle",
@@ -103,6 +102,9 @@ def default_compute_score(
         from . import search_r1_like_qa_em
 
         res = search_r1_like_qa_em.compute_score(solution_str, ground_truth)
+    elif data_source in ["searchR1_hotpotqa_hard"]:
+        from . import search_r1_like_qa_em
+        res = search_r1_like_qa_em.compute_score_f1(solution_str, ground_truth)
     elif data_source in ["ASearcher"]:
         from . import search_r1_like_qa_em
 

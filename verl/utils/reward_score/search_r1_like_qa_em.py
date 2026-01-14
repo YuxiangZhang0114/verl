@@ -307,18 +307,16 @@ def compute_score_asearcher_with_thinking(solution_str, ground_truth, method="st
             return format_score
 
 
-def compute_score_f1(question, solution_str, ground_truths, val_type='f1', cot=False) -> float:
+def compute_score_f1(solution_str, ground_truths, cot=False) -> float:
     """计算 F1 score 的函数。
     
     Args:
-        question: 问题字符串
         solution_str: 解决方案字符串
-        ground_truths: 标准答案列表，每个元素是一个答案列表（支持多个标准答案）
-        val_type: 验证类型，可选 'em', 'mbe', 'f1'
+        ground_truths: 标准答案列表（支持多个标准答案）
         cot: 是否使用 chain-of-thought 模式
         
     Returns:
-        float: 计算得到的分数
+        float: 预测答案与所有参考答案中最高的 F1 分数
     """
     # 预处理 solution_str：转小写，处理 cot 模式，提取 assistant 部分
     solution_str = solution_str.lower()
@@ -328,65 +326,45 @@ def compute_score_f1(question, solution_str, ground_truths, val_type='f1', cot=F
 
     # 检查标签平衡
     if not check_tags_balance(solution_str):
-        return -0.0
+        return 0.0
     
-    # 提取答案内容（复用 extract_solution 的逻辑，但需要获取完整内容）
+    # 提取答案内容
     try:
         answer_pattern = r"<answer>(.*?)</answer>"
         match = re.finditer(answer_pattern, solution_str, re.DOTALL)
         matches = list(match)
         
         if len(matches) < 1:
-            return -0.0
+            return 0.0
         
         # 获取最后一个答案标签的内容
         answer_content = matches[-1].group(1).strip()
     except Exception as e:
         print(f"Error extracting answer content: {e}")
-        return -0.0
+        return 0.0
     
-    # 分割多个答案并预处理
-    answers = answer_content.split(";")
-    answers = [preprocess_text(answer) for answer in answers]
-
-    max_score = 0.0
-
-    if len(answers) != len(ground_truths):
-        return max_score
-
-    # 对每个答案进行匹配和打分
-    for idx, answer in enumerate(answers):
-        cur_max_score = 0.0
-        gts = ground_truths[idx]
-        gts = [preprocess_text(gt) for gt in gts]
+    # 预处理预测答案
+    answer = preprocess_text(answer_content)
     
-        if val_type == 'em' or val_type == "mbe":
-            # 对于 em 类型，复用 em_check 函数
-            if em_check(answer, gts):
-                cur_max_score = 1.0
-        else:
-            # F1 计算：基于 token 级别的精确率和召回率
-            for gt in gts:
-                pred_tokens = set(answer.split())
-                gt_tokens = set(gt.split())
-                
-                if not gt_tokens:
-                    continue
-                if not pred_tokens:
-                    continue
-                
-                common_tokens = pred_tokens & gt_tokens
-                
-                precision = len(common_tokens) / len(pred_tokens) if pred_tokens else 0
-                recall = len(common_tokens) / len(gt_tokens) if gt_tokens else 0
-                
-                if precision + recall > 0:
-                    f1 = 2 * (precision * recall) / (precision + recall)
-                    cur_max_score = max(cur_max_score, f1)
-
-        max_score += cur_max_score
-        if val_type == "mbe":
-            # max_score = get_mbe_result(question, ground_truths, answer_content)
-            return 0
-
-    return max_score
+    # 预处理所有参考答案
+    gts = [preprocess_text(gt) for gt in ground_truths]
+    
+    # 计算与所有参考答案中最高的 F1 分数
+    max_f1 = 0.0
+    for gt in gts:
+        pred_tokens = set(answer.split())
+        gt_tokens = set(gt.split())
+        
+        if not gt_tokens or not pred_tokens:
+            continue
+        
+        common_tokens = pred_tokens & gt_tokens
+        
+        precision = len(common_tokens) / len(pred_tokens) if pred_tokens else 0
+        recall = len(common_tokens) / len(gt_tokens) if gt_tokens else 0
+        
+        if precision + recall > 0:
+            f1 = 2 * (precision * recall) / (precision + recall)
+            max_f1 = max(max_f1, f1)
+    
+    return max_f1
