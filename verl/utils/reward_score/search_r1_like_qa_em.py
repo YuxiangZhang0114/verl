@@ -307,13 +307,12 @@ def compute_score_asearcher_with_thinking(solution_str, ground_truth, method="st
             return format_score
 
 
-def compute_score_f1(solution_str, ground_truths, cot=False) -> float:
+def compute_score_f1(solution_str, ground_truths) -> float:
     """计算 F1 score 的函数。
     
     Args:
         solution_str: 解决方案字符串
         ground_truths: 标准答案（可以是字典 {"target": [...]} 或列表）
-        cot: 是否使用 chain-of-thought 模式
         
     Returns:
         float: 预测答案与所有参考答案中最高的 F1 分数
@@ -329,9 +328,6 @@ def compute_score_f1(solution_str, ground_truths, cot=False) -> float:
     if isinstance(ground_truths, str):
         ground_truths = [ground_truths]
     
-    # 处理 cot 模式：如果缺少结束标签，添加它
-    if cot:
-        solution_str = solution_str + "</answer>"
     
     # 提取 assistant 部分（不转小写，保持原始大小写以便匹配标签）
     if "<|im_start|>assistant" in solution_str:
