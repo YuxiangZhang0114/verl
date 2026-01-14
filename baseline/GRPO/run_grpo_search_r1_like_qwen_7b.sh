@@ -34,7 +34,7 @@ VAL_DATA="$PROJECT_DIR/data/hotpotqa_hard_train/validation.parquet"
 # Tool config path
 TOOL_CONFIG="$PROJECT_DIR/baseline/GRPO/tool_config/search_tool_simple_config.yaml"
 
-save_path="/mnt/workspace/checkpoints/search_r1_like_grpo_sglang_qwen2.5-7b-instruct_hotpotqa_rule_4gpu"
+save_path="/mnt/workspace/checkpoints/search_r1_like_grpo_sglang_qwen2.5-7b-instruct_hotpotqa_f1_4gpu"
 
 sp_size=2
 loss_agg_mode="token-mean"
@@ -95,8 +95,8 @@ python3 -m verl.trainer.main_ppo \
     trainer.critic_warmup=0 \
     trainer.val_before_train=True \
     trainer.logger='["console","wandb"]' \
-    trainer.project_name='search_r1_like_grpo_sglang' \
-    trainer.experiment_name='qwen2.5-7b-instruct-grpo-sglang-async-toolagent-n5-8gpu_hotpotqa' \
+    trainer.project_name='Teacher_interval' \
+    trainer.experiment_name='qwen2.5-7b-instruct-grpo_hotpotqa_f1_2048samples_preliminary' \
     trainer.n_gpus_per_node=4 \
     trainer.nnodes=1 \
     trainer.save_freq=21 \
