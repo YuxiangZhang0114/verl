@@ -125,7 +125,7 @@ ENV/
 !data/hotpotqa_hard_train/train.parquet
 !data/hotpotqa_hard_train/validation.parquet
 !data/asearcher_train/train.parquet
-
+!data/hotpotqa_train/train.parquet
 # local logs
 logs
 log
