@@ -113,7 +113,7 @@ def main():
     processed_files = []
 
     # Only process train split
-    split = "validation"
+    split = "train"
     logger.info(f"Processing {split} split...")
 
     try:
@@ -136,7 +136,7 @@ def main():
         def apply_process_row(row, split_name=split):
             return process_single_row(row, current_split_name=split_name, row_index=row.name)
 
-        df_raw = df_raw.sample(n=400, random_state=42)
+        df_raw = df_raw.sample(n=2048, random_state=42)
         df_processed = df_raw.apply(apply_process_row, axis=1)
 
         # Save processed DataFrame
@@ -178,7 +178,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--local_dir",
-        default="data/hotpotqa_hard_train",
+        default="data/hotpotqa_train",
         help="Local directory to save the processed Parquet files.",
     )
     parser.add_argument("--hdfs_dir", default=None, help="Optional HDFS directory to copy the Parquet files to.")

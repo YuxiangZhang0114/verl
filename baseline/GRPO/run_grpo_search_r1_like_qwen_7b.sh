@@ -29,7 +29,7 @@ CONFIG_PATH="$PROJECT_DIR/examples/sglang_multiturn/config"
 
 # Data paths
 # TRAIN_DATA="$PROJECT_DIR/data/hotpotqa_hard_train/train.parquet"
-TRAIN_DATA="$PROJECT_DIR/data/asearcher_train/train.parquet"
+TRAIN_DATA="$PROJECT_DIR/data/hotpotqa_train/train.parquet"
 VAL_DATA="$PROJECT_DIR/data/hotpotqa_hard_train/validation.parquet"
 # Tool config path
 TOOL_CONFIG="$PROJECT_DIR/baseline/GRPO/tool_config/search_tool_simple_config.yaml"
@@ -42,13 +42,14 @@ python3 -m verl.trainer.main_ppo \
     --config-path="$CONFIG_PATH" \
     --config-name='search_multiturn_grpo' \
     algorithm.adv_estimator=grpo \
-    data.train_batch_size=128 \
+    data.train_batch_size=64 \
     data.val_batch_size=400 \
     data.max_prompt_length=2048 \
     data.max_response_length=20480 \
     data.filter_overlong_prompts=True \
     data.truncation='error' \
     data.return_raw_chat=True \
+    actor_rollout_ref.actor.checkpoint.save_contents=['hf_model'] \
     trainer.default_local_dir=$save_path \
     actor_rollout_ref.rollout.multi_turn.max_tool_response_length=10000 \
     actor_rollout_ref.model.path=Qwen/Qwen2.5-7B-Instruct\
@@ -90,14 +91,14 @@ python3 -m verl.trainer.main_ppo \
     trainer.val_before_train=True \
     trainer.logger='["console","wandb"]' \
     trainer.project_name='search_r1_like_grpo_sglang' \
-    trainer.experiment_name='qwen2.5-7b-instruct-grpo-sglang-async-toolagent-n5-8gpu_asearcher' \
+    trainer.experiment_name='qwen2.5-7b-instruct-grpo-sglang-async-toolagent-n5-8gpu_hotpotqa' \
     trainer.n_gpus_per_node=4 \
     trainer.nnodes=1 \
-    trainer.save_freq=80 \
+    trainer.save_freq=20 \
     trainer.test_freq=10 \
     trainer.log_val_generations=40 \
     data.train_files="$TRAIN_DATA" \
     data.val_files="$VAL_DATA" \
     actor_rollout_ref.rollout.multi_turn.tool_config_path="$TOOL_CONFIG" \
-    trainer.total_epochs=2 "$@"
+    trainer.total_epochs=4 "$@"
 
