@@ -98,7 +98,7 @@ EVALUATION INSTRUCTIONS:
 - Be STRICT and RIGOROUS in your assessment
 - Do NOT accept matches if there is any ambiguity, incompleteness, or factual discrepancy
 - Consider context: if the question requires a specific format or precision, both answers must meet that requirement
-- Return ONLY "YES" if the answers match, or "NO" if they do not match
+- Return ONLY "YES" if the answers match, or "NO" if they do not match,
 - Do not provide explanations, justifications, or additional text - only "YES" or "NO"
 
 PREDICTED ANSWER: {prediction}
@@ -106,7 +106,7 @@ PREDICTED ANSWER: {prediction}
 GOLDEN ANSWER: {golden_answer}
 
 Do these answers match? Respond with only "YES" or "NO":"""
-
+    print(prompt)
     try:
         response = client.chat.completions.create(
             model=LLM_MATCH_MODEL,
