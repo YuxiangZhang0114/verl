@@ -312,26 +312,40 @@ def compute_score_f1(solution_str, ground_truths, cot=False) -> float:
     
     Args:
         solution_str: 解决方案字符串
-        ground_truths: 标准答案列表（支持多个标准答案）
+        ground_truths: 标准答案（可以是字典 {"target": [...]} 或列表）
         cot: 是否使用 chain-of-thought 模式
         
     Returns:
         float: 预测答案与所有参考答案中最高的 F1 分数
     """
-    # 预处理 solution_str：转小写，处理 cot 模式，提取 assistant 部分
-    solution_str = solution_str.lower()
+    # 处理 ground_truths 参数：如果是字典，提取 target 字段
+    if isinstance(ground_truths, dict):
+        if "target" in ground_truths:
+            ground_truths = ground_truths["target"]
+        else:
+            return 0.0
+    
+    # 确保 ground_truths 是列表
+    if isinstance(ground_truths, str):
+        ground_truths = [ground_truths]
+    
+    # 处理 cot 模式：如果缺少结束标签，添加它
     if cot:
         solution_str = solution_str + "</answer>"
-    solution_str = solution_str.split("<|im_start|>assistant")[-1]
+    
+    # 提取 assistant 部分（不转小写，保持原始大小写以便匹配标签）
+    if "<|im_start|>assistant" in solution_str:
+        solution_str = solution_str.split("<|im_start|>assistant")[-1]
 
-    # 检查标签平衡
-    if not check_tags_balance(solution_str):
+    # 检查标签平衡（使用不区分大小写的检查）
+    solution_str_lower = solution_str.lower()
+    if not check_tags_balance(solution_str_lower):
         return 0.0
     
-    # 提取答案内容
+    # 提取答案内容（使用不区分大小写的正则表达式）
     try:
         answer_pattern = r"<answer>(.*?)</answer>"
-        match = re.finditer(answer_pattern, solution_str, re.DOTALL)
+        match = re.finditer(answer_pattern, solution_str, re.DOTALL | re.IGNORECASE)
         matches = list(match)
         
         if len(matches) < 1:
