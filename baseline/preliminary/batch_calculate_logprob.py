@@ -382,7 +382,7 @@ def main():
     parser.add_argument(
         "--student_base_url",
         type=str,
-        default="http://10.244.181.218:8100/v1",
+        default="http://10.244.247.213:8100/v1",
         help="学生模型 vLLM 服务地址"
     )
     parser.add_argument(
@@ -402,7 +402,7 @@ def main():
     parser.add_argument(
         "--teacher_base_url",
         type=str,
-        default="http://10.244.181.218:8101/v1",
+        default="http://10.244.247.213:8101/v1",
         help="教师模型 vLLM 服务地址"
     )
     parser.add_argument(

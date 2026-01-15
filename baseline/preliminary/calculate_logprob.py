@@ -210,12 +210,13 @@ if __name__ == "__main__":
     # 假设你已经启动了两个 vLLM 服务：
     # 
     # 学生模型 (Qwen2.5-7B):
-    # CUDA_VISIBLE_DEVICES=4,5 python -m vllm.entrypoints.openai.api_server \
-    #       --model /root/actor/huggingface \
+    # CUDA_VISIBLE_DEVICES=4,5,6,7 python -m vllm.entrypoints.openai.api_server \
+    #       --model TokerZ/7B-E4 \
     #       --served_model_name student_model \
-    #       --port 8100 --tensor_parallel_size 2 \
-        #   --max_model_len 16384 \
-        #   --max_num_seqs 24
+    #       --port 8101 --tensor_parallel_size 4 \
+    #       --max_model_len 26384 \
+    #     --gpu_memory_utilization 0.9
+    #       --max_num_seqs 300
 
     # 注意：如果上面的路径不对，可以尝试：
     # --model TokerZ/7B-E2/actor
@@ -225,12 +226,18 @@ if __name__ == "__main__":
     #     --served_model_name teacher_model \
     #     --port 8101 \
     #     --tensor_parallel_size 2
-
+    # CUDA_VISIBLE_DEVICES=4,5,6,7 python -m vllm.entrypoints.openai.api_server \
+    #     --model /model/32B \
+    #     --served_model_name student_model \
+    #     --port 8101 --tensor_parallel_size 4 \
+    #     --max_model_len 16384 \
+    #     --gpu_memory_utilization 0.6
+    #     --max_num_seqs 16
     calculator = DisagreementCalculator(
-        student_base_url="http://10.244.181.218:8000/v1",
+        student_base_url="http://10.244.247.213:8100/v1",
         student_model="Qwen/Qwen2.5-7B-Instruct",
         student_tokenizer_path="Qwen/Qwen2.5-7B-Instruct",
-        teacher_base_url="http://10.244.181.218:8001/v1",
+        teacher_base_url="http://10.244.247.213:8101/v1",
         teacher_model="Qwen/Qwen3-30B-A3B",
         teacher_tokenizer_path="Qwen/Qwen3-30B-A3B",
     )

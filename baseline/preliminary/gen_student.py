@@ -387,7 +387,7 @@ async def main():
     parser.add_argument(
         "--vllm_url",
         type=str,
-        default="http://10.244.181.218:8100/v1",
+        default="http://10.244.247.213:8101/v1",
         help="vLLM server endpoint (OpenAI-compatible API)",
     )
     parser.add_argument(
@@ -415,10 +415,10 @@ async def main():
     parser.add_argument(
         "--output_file",
         type=str,
-        default="baseline/preliminary/data/train_student.parquet",
+        default="baseline/preliminary/data/train_student_4epoch.parquet",
         help="Output parquet file path",
     )
-    parser.add_argument("--batch_size", type=int, default=64, help="Batch size for async processing")
+    parser.add_argument("--batch_size", type=int, default=300, help="Batch size for async processing")
     parser.add_argument("--temperature", type=float, default=0.7, help="Sampling temperature")
     parser.add_argument("--max_tokens", type=int, default=2048, help="Max tokens per generation")
 
