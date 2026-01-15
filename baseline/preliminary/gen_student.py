@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 # 关闭 httpx 和 openai 的日志
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("openai").setLevel(logging.WARNING)
-logger.disabled = True
+logger.disabled = True  # 临时启用日志以调试
 
 # Default system prompt is no longer used - we load prompts directly from the dataset
 
@@ -246,30 +246,41 @@ class DataGenerator:
         
         assistant_turns = 0
         error_message = None
+        
+        logger.info(f"\n{'#'*100}")
+        logger.info(f"开始生成对话 - 问题: {user_content[:100]}...")
+        logger.info(f"最大轮数: {self.max_assistant_turns}")
+        logger.info(f"{'#'*100}\n")
 
         try:
             while assistant_turns < self.max_assistant_turns:
+                logger.info(f"\n{'='*80}\n开始第 {assistant_turns + 1} 轮生成...")
+                logger.info(f"当前 api_messages 长度: {len(api_messages)}")
+                logger.info(f"最后一条消息: role={api_messages[-1]['role']}, content_len={len(api_messages[-1].get('content', ''))}")
+                
                 # Call vLLM using chat.completions (no tools parameter, tools are in system prompt)
                 response = await self.client.chat.completions.create(
-                    model="default",
+                    model="student_model",
                     messages=api_messages,
                     temperature=self.temperature,
                     max_tokens=self.max_tokens,
                 )
                 
-                # print("+" * 100)
-                # print(response.choices[0].message.content + "\n\n")
-                # print("+" * 100)
                 raw_content = response.choices[0].message.content or ""
+                logger.info(f"生成的原始内容长度: {len(raw_content)}")
+                logger.info(f"原始内容前 200 字符: {raw_content[:200]}")
                 
                 # Parse tool calls locally using Hermes parser
                 content, tool_calls = self.parser.extract_tool_calls(raw_content)
                 
                 # Debug logging
                 if tool_calls:
-                    logger.info(f"Found {len(tool_calls)} tool call(s) from local parsing")
+                    logger.info(f"✓ 发现 {len(tool_calls)} 个工具调用")
+                    for idx, tc in enumerate(tool_calls):
+                        logger.info(f"  工具调用 {idx + 1}: {tc['function']['name']}")
                 else:
-                    logger.debug(f"No tool calls found. Content: {content[:200] if content else 'empty'}")
+                    logger.info(f"✗ 未发现工具调用，纯文本内容长度: {len(content)}")
+                    logger.info(f"  内容前 200 字符: {content[:200] if content else '(空)'}")
 
                 # Build assistant message for saving - use parsed content (with tool tags removed)
                 save_msg = {"role": "assistant", "content": content ,"raw_content": raw_content}
@@ -286,10 +297,13 @@ class DataGenerator:
                 # Check if we should continue
                 if not tool_calls:
                     # No tool calls, conversation is complete
+                    logger.info(f"✓ 对话完成，共 {assistant_turns} 轮")
                     break
 
                 # Execute tool calls and add tool messages
-                for tool_call in tool_calls:
+                logger.info(f"开始执行 {len(tool_calls)} 个工具调用...")
+                for idx, tool_call in enumerate(tool_calls):
+                    logger.info(f"  执行工具 {idx + 1}/{len(tool_calls)}")
                     function_name = tool_call["function"]["name"]
                     arguments_str = tool_call["function"]["arguments"]
                     tool_call_id = tool_call.get("id")
@@ -309,17 +323,18 @@ class DataGenerator:
                         # Get query parameter as defined in schema (single string)
                         query = arguments.get("query", "")
                         topk = arguments.get("topk", 5)
-                        logger.info(f"Executing search with query: {query[:100]}..., topk={topk}")
+                        logger.info(f"    执行搜索: query='{query[:50]}...', topk={topk}")
                         if query:
                             try:
                                 search_results = self.search_executor.execute_search(query, topk=topk)
-                                logger.info(f"Search completed, result length: {len(search_results)}")
+                                logger.info(f"    ✓ 搜索完成，结果长度: {len(search_results)} 字符")
                                 # Add tool response
                                 tool_msg = {"role": "tool", "content": search_results}
                                 if tool_call_id:
                                     tool_msg["tool_call_id"] = tool_call_id
                                 messages.append(tool_msg)
                                 api_messages.append(tool_msg)
+                                logger.info(f"    ✓ 工具结果已添加到消息列表")
                             except Exception as e:
                                 logger.error(f"Search execution error: {e}")
                                 tool_msg = {"role": "tool", "content": json.dumps({"error": f"Search failed: {str(e)}"})}
@@ -340,6 +355,8 @@ class DataGenerator:
                             tool_msg["tool_call_id"] = tool_call_id
                         messages.append(tool_msg)
                         api_messages.append(tool_msg)
+                
+                logger.info(f"✓ 第 {assistant_turns} 轮完成，准备进入下一轮...")
 
         except Exception as e:
             logger.error(f"Error generating conversation: {e}")
@@ -370,7 +387,7 @@ async def main():
     parser.add_argument(
         "--vllm_url",
         type=str,
-        default="http://localhost:8000/v1",
+        default="http://10.244.181.218:8100/v1",
         help="vLLM server endpoint (OpenAI-compatible API)",
     )
     parser.add_argument(
@@ -382,11 +399,11 @@ async def main():
     parser.add_argument(
         "--model_path",
         type=str,
-        default="Alibaba-NLP/Tongyi-DeepResearch-30B-A3B",
+        default="Qwen/Qwen2.5-7B-Instruct",
         help="Model path for loading tokenizer (HuggingFace model ID or local path)",
     )
     parser.add_argument(
-        "--max_assistant_turns", type=int, default=3, help="Maximum assistant turns per conversation"
+        "--max_assistant_turns", type=int, default=15, help="Maximum assistant turns per conversation"
     )
     parser.add_argument("--max_samples", type=int, default=-1, help="Number of samples to process (-1 for all)")
     parser.add_argument(
@@ -401,7 +418,7 @@ async def main():
         default="baseline/preliminary/data/train_student.parquet",
         help="Output parquet file path",
     )
-    parser.add_argument("--batch_size", type=int, default=16, help="Batch size for async processing")
+    parser.add_argument("--batch_size", type=int, default=64, help="Batch size for async processing")
     parser.add_argument("--temperature", type=float, default=0.7, help="Sampling temperature")
     parser.add_argument("--max_tokens", type=int, default=2048, help="Max tokens per generation")
 
