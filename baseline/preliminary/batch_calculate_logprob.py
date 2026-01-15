@@ -368,13 +368,13 @@ def main():
     parser.add_argument(
         "--input_file",
         type=str,
-        default="baseline/preliminary/data/train_student.parquet",
+        default="baseline/preliminary/data/train_student_4epoch.parquet",
         help="输入 parquet 文件路径"
     )
     parser.add_argument(
         "--output_file",
         type=str,
-        default="baseline/preliminary/data/train_student_42step_32B_teacher_logprobs.jsonl",
+        default="baseline/preliminary/data/train_student_84step_32B_teacher_logprobs.jsonl",
         help="输出 JSONL 文件路径（默认为输入文件名_logprobs.jsonl）"
     )
     
@@ -433,7 +433,7 @@ def main():
     parser.add_argument(
         "--save_interval",
         type=int,
-        default=10,
+        default=100,
         help="保存间隔（每处理多少样本后 flush）"
     )
     
