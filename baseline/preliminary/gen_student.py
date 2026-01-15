@@ -43,30 +43,7 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("openai").setLevel(logging.WARNING)
 logger.disabled = True
 
-# Default system prompt for search tasks
-# DEFAULT_SYSTEM_CONTENT = (
-#     "You are a deep research assistant. Your core function is to conduct thorough, multi-source "
-#     "investigations into any topic. You must handle both broad, open-domain inquiries and queries "
-#     "within specialized academic fields.\n\n"
-#     "IMPORTANT: Before making any tool calls, you MUST:\n"
-#     "1. First explain your reasoning process inside <think></think> tags\n"
-#     "2. Identify what information you need to search for\n"
-#     "3. Then call the search tool with appropriate queries\n"
-#     "4. After receiving search results, analyze them carefully\n"
-#     "5. If needed, perform additional searches to verify or gather more information\n\n"
-#     "For every request, synthesize information from credible, diverse sources to deliver a comprehensive, "
-#     "accurate, and objective response. When you have gathered sufficient information and are ready to "
-#     "provide the definitive response, you must enclose the entire final answer within <answer></answer> tags."
-# )
-DEFAULT_SYSTEM_CONTENT = """Role:
-You are an information-seeking assistant. Your core function is to retrieve information from the knowledge base to answer the question.
-
-Behavior:
-- For every request, synthesize information from credible and diverse sources to find an answer.
-- Always think before taking action. Use <thinking></thinking> tags to show your thinking process before calling tools or providing the final answer.
-- Once you have gathered sufficient information, you must provide the final answer enclosed within <answer></answer> tags at the end of your message (e.g., a person's name, a date, a location, a number, etc.).
-
-"""
+# Default system prompt is no longer used - we load prompts directly from the dataset
 
 # Tool schema for search function
 SEARCH_TOOL_SCHEMA = {
@@ -198,7 +175,6 @@ class DataGenerator:
         max_assistant_turns: int = 3,
         temperature: float = 0.7,
         max_tokens: int = 2048,
-        system_content: str = DEFAULT_SYSTEM_CONTENT,
     ):
         self.client = AsyncOpenAI(base_url=vllm_url, api_key="EMPTY")
         self.search_executor = SearchExecutor(retrieval_url)
@@ -206,17 +182,16 @@ class DataGenerator:
         self.max_assistant_turns = max_assistant_turns
         self.temperature = temperature
         self.max_tokens = max_tokens
-        self.system_content = system_content
         
         # Load tokenizer for local prompt construction
         logger.info(f"Loading tokenizer from {model_path}")
         self.tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
 
-    def _build_system_with_tools(self) -> str:
+    def _build_system_with_tools(self, system_content: str) -> str:
         """Build system message with tools using tokenizer.apply_chat_template"""
         # Create a minimal messages list just to extract system prompt with tools
         dummy_messages = [
-            {"role": "system", "content": self.system_content},
+            {"role": "system", "content": system_content},
             {"role": "user", "content": "dummy"},
         ]
         # Apply chat template with tools to get the formatted system prompt
@@ -232,32 +207,41 @@ class DataGenerator:
         if match:
             return match.group(1).strip()
         # Fallback: return original system content + tool description
-        return self.system_content
+        return system_content
 
-    async def generate_single_conversation(self, question: str, extra_info: dict) -> dict:
+    async def generate_single_conversation(self, prompt: list, extra_info: dict) -> dict:
         """
-        Generate a complete multi-turn conversation for a single question.
+        Generate a complete multi-turn conversation for a given prompt.
 
         Args:
-            question: The question to answer
+            prompt: The prompt messages list from the dataset (contains system and user messages)
             extra_info: Extra information from the dataset
 
         Returns:
             Dictionary with messages and metadata
         """
+        # Extract system and user content from the prompt
+        system_content = ""
+        user_content = ""
+        for msg in prompt:
+            if msg["role"] == "system":
+                system_content = msg["content"]
+            elif msg["role"] == "user":
+                user_content = msg["content"]
+        
         # Build system message with tools embedded
-        system_with_tools = self._build_system_with_tools()
+        system_with_tools = self._build_system_with_tools(system_content)
         
         # Initialize messages for API calls (with tools in system)
         api_messages = [
             {"role": "system", "content": system_with_tools},
-            {"role": "user", "content": f"Question:\n{question}"},
+            {"role": "user", "content": user_content},
         ]
         
         # Messages to save (with original system content, without tool embedding)
         messages = [
-            {"role": "system", "content": self.system_content, "raw_content": system_with_tools},
-            {"role": "user", "content": f"{question}", "raw_content": f"Question:\n{question}"},
+            {"role": "system", "content": system_content, "raw_content": system_with_tools},
+            {"role": "user", "content": user_content},
         ]
         
         assistant_turns = 0
@@ -364,16 +348,16 @@ class DataGenerator:
         return {
             "messages": messages,
             "tools": [SEARCH_TOOL_SCHEMA],
-            "question": question,
+            "prompt": prompt,
             "extra_info": extra_info,
             "assistant_turns": assistant_turns,
             "error": error_message,
         }
 
     async def generate_batch(self, batch_data: list[dict], desc: str = "Processing batch") -> list[dict]:
-        """Generate conversations for a batch of questions"""
+        """Generate conversations for a batch of prompts"""
         tasks = [
-            self.generate_single_conversation(item["question"], item.get("extra_info", {})) for item in batch_data
+            self.generate_single_conversation(item["prompt"], item.get("extra_info", {})) for item in batch_data
         ]
         # Use tqdm_asyncio.gather to show progress for tasks within the batch
         return await tqdm_asyncio.gather(*tasks, desc=desc)
@@ -408,24 +392,18 @@ async def main():
     parser.add_argument(
         "--input_file",
         type=str,
-        default="data/hotpotqa_hard_train/train.parquet",
-        help="Input parquet file with HotpotQA data",
+        default="data/hotpotqa_train/train.parquet",
+        help="Input parquet file with HotpotQA data (should contain 'prompt' and 'extra_info' columns)",
     )
     parser.add_argument(
         "--output_file",
         type=str,
-        default="baseline/DataKD/train_distilled.parquet",
+        default="baseline/preliminary/data/train_student.parquet",
         help="Output parquet file path",
     )
     parser.add_argument("--batch_size", type=int, default=16, help="Batch size for async processing")
     parser.add_argument("--temperature", type=float, default=0.7, help="Sampling temperature")
     parser.add_argument("--max_tokens", type=int, default=2048, help="Max tokens per generation")
-    parser.add_argument(
-        "--system_prompt",
-        type=str,
-        default=DEFAULT_SYSTEM_CONTENT,
-        help="System prompt for the assistant",
-    )
 
     args = parser.parse_args()
 
@@ -439,17 +417,21 @@ async def main():
     else:
         logger.info(f"Processing all {len(df)} samples")
 
-    # Prepare data items
+    # Prepare data items - directly use 'prompt' field from the dataset
     data_items = []
     for idx, row in df.iterrows():
+        # Get extra_info, handle both dict and other types
+        extra_info = row.get('extra_info', {})
+        if not isinstance(extra_info, dict):
+            extra_info = {}
+        
         item = {
-            "question": row['extra_info'].get("question", ""),
+            "prompt": row['prompt'],  # Use prompt directly from dataset
             "extra_info": {
                 "index": idx,
-                "answer": row['extra_info'].get("answer", ""),
-                "question": row['extra_info'].get("question", ""),
-                "level": row.get("level", ""),
-                "data_source": row.get("data_source", "hotpotqa_hard"),
+                "answer": extra_info.get("answer", ""),
+                "question": extra_info.get("question", ""),
+                "data_source": row.get("data_source", "hotpotqa"),
             },
         }
         data_items.append(item)
@@ -462,7 +444,6 @@ async def main():
         max_assistant_turns=args.max_assistant_turns,
         temperature=args.temperature,
         max_tokens=args.max_tokens,
-        system_content=args.system_prompt,
     )
 
     # Ensure output directory exists
