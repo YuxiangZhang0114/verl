@@ -211,7 +211,7 @@ if __name__ == "__main__":
     # 
     # 学生模型 (Qwen2.5-7B):
     # CUDA_VISIBLE_DEVICES=0,1,2,3 python -m vllm.entrypoints.openai.api_server \
-    #       --model /models/30B \
+    #       --model TokerZ/7B-epoch1 \
     #       --served_model_name student_model \
     #       --port 8100 --tensor_parallel_size 4 \
     #       --max_model_len 26384 \
@@ -225,14 +225,23 @@ if __name__ == "__main__":
     #     --model /model/32B \
     #     --served_model_name teacher_model \
     #     --port 8101 \
-    #     --tensor_parallel_size 2
+    #     --tensor_parallel_size 2 \
+        #     --gpu_memory_utilization 0.6
+    #       --max_num_seqs 15
+    # CUDA_VISIBLE_DEVICES=4,5,6,7 python -m vllm.entrypoints.openai.api_server \
+    #     --model Qwen/Qwen3-30B-A3B-Instruct-2507 \
+    #     --served_model_name teacher_model \
+    #     --port 8101 --tensor_parallel_size 4 \
+    #     --max_model_len 26384 \
+    #     --gpu_memory_utilization 0.5 \
+    #     --max_num_seqs 16
     # CUDA_VISIBLE_DEVICES=4,5,6,7 python -m vllm.entrypoints.openai.api_server \
     #     --model /model/32B \
     #     --served_model_name teacher_model \
     #     --port 8101 --tensor_parallel_size 4 \
     #     --max_model_len 26384 \
     #     --gpu_memory_utilization 0.5 \
-    #     --max_num_seqs 16
+    #     --max_num_seqs 32
     calculator = DisagreementCalculator(
         student_base_url="http://10.244.247.213:8100/v1",
         student_model="Qwen/Qwen2.5-7B-Instruct",

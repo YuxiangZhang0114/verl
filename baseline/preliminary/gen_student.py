@@ -260,7 +260,7 @@ class DataGenerator:
                 
                 # Call vLLM using chat.completions (no tools parameter, tools are in system prompt)
                 response = await self.client.chat.completions.create(
-                    model="teacher_model",
+                    model="student_model",
                     messages=api_messages,
                     temperature=self.temperature,
                     max_tokens=self.max_tokens,
@@ -387,7 +387,7 @@ async def main():
     parser.add_argument(
         "--vllm_url",
         type=str,
-        default="http://10.244.247.213:8101/v1",
+        default="http://10.244.137.178:8100/v1",
         help="vLLM server endpoint (OpenAI-compatible API)",
     )
     parser.add_argument(
@@ -415,7 +415,7 @@ async def main():
     parser.add_argument(
         "--output_file",
         type=str,
-        default="baseline/preliminary/data/train_32B_teacher_logprobs.parquet",
+        default="baseline/preliminary/data/train_7B_E1_student_logprobs.parquet",
         help="Output parquet file path",
     )
     parser.add_argument("--batch_size", type=int, default=300, help="Batch size for async processing")
