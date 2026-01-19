@@ -14,7 +14,9 @@ DATA_DIR="$PROJECT_DIR/data/alfworld_train"
 function now() {
     date '+%d-%H-%M'
 }
-
+pip install alfworld
+alfworld-download
+export ALFWORLD_DATA=~/.alfworld
 EXPERIMENT_NAME="alfworld_grpo_30b_$(now)"
 SAVE_PATH="/mnt/workspace/checkpoints/alfworld_grpo_30b_${EXPERIMENT_NAME}"
 
