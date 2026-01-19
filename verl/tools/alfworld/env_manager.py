@@ -259,7 +259,7 @@ class ALFWorldEnvManager:
                     # Temporarily replace game_files with only the matching game
                     self._shared_env.game_files = matching_games
                     logger.debug(f"Loading specific game: {matching_games[0]}")
-                    obs_list, info = self._shared_env.reset()
+                    reset_result = self._shared_env.reset()
                     # Restore original game_files
                     self._shared_env.game_files = original_game_files
                 else:
@@ -267,12 +267,27 @@ class ALFWorldEnvManager:
                         f"Game file '{game_file_path}' not found in available games. "
                         f"Using random game instead."
                     )
-                    obs_list, info = self._shared_env.reset()
+                    reset_result = self._shared_env.reset()
             else:
                 # No specific game requested, use random
-                obs_list, info = self._shared_env.reset()
+                reset_result = self._shared_env.reset()
             
-            obs = obs_list[0] if isinstance(obs_list, list) else obs_list
+            # Handle reset result - could be (obs_list, info) or just obs_list
+            if isinstance(reset_result, tuple) and len(reset_result) == 2:
+                obs_list, info = reset_result
+            else:
+                obs_list = reset_result
+                info = {}
+            
+            # Extract observation from batch
+            obs = obs_list[0] if isinstance(obs_list, (list, tuple)) else obs_list
+            
+            # Handle info - could be a list or dict
+            if isinstance(info, (list, tuple)):
+                info = info[0] if len(info) > 0 else {}
+            if not isinstance(info, dict):
+                info = {}
+                
         except Exception as e:
             raise RuntimeError(
                 f"Failed to reset ALFWorld environment: {e}. "
@@ -281,6 +296,14 @@ class ALFWorldEnvManager:
         
         # Extract goal from observation
         goal = self._extract_goal(obs, {"task_type": task_type})
+        
+        # Get admissible commands from info
+        admissible_commands = info.get('admissible_commands', [])
+        if isinstance(admissible_commands, (list, tuple)) and len(admissible_commands) > 0:
+            if isinstance(admissible_commands[0], (list, tuple)):
+                admissible_commands = list(admissible_commands[0])
+            else:
+                admissible_commands = list(admissible_commands)
         
         # Store reference to shared environment and state
         self.active_envs[request_id] = self._shared_env
@@ -294,7 +317,7 @@ class ALFWorldEnvManager:
             "total_reward": 0.0,
             "steps": 0,
             "action_history": [],
-            "admissible_commands": info.get('admissible_commands', [[]])[0] if info else [],
+            "admissible_commands": admissible_commands,
         }
         
         return obs, goal
@@ -424,21 +447,51 @@ class ALFWorldEnvManager:
         state = self.env_states[request_id]
         
         # ALFWorld expects a list of actions (batched)
-        obs_list, reward_list, done_list, info = env.step([action])
+        # Returns: obs_list, scores_list, dones_list, infos_list
+        step_result = env.step([action])
         
-        # Extract single results from batch and convert to proper types
-        obs = obs_list[0] if isinstance(obs_list, list) else obs_list
-        reward_raw = reward_list[0] if isinstance(reward_list, list) else reward_list
-        done_raw = done_list[0] if isinstance(done_list, list) else done_list
+        # Handle different possible return formats
+        if len(step_result) == 4:
+            obs_list, scores_list, dones_list, infos_list = step_result
+        else:
+            logger.warning(f"Unexpected step result format: {len(step_result)} elements")
+            obs_list, scores_list, dones_list = step_result[:3]
+            infos_list = [{}]
         
-        # Convert to standard Python types
-        reward = float(reward_raw) if reward_raw is not None else 0.0
+        # Extract single results from batch
+        obs = obs_list[0] if isinstance(obs_list, (list, tuple)) else obs_list
+        
+        # Handle scores - could be list, tuple, or single value
+        score_raw = scores_list[0] if isinstance(scores_list, (list, tuple)) else scores_list
+        # Handle case where score is a tuple (accumulated_score, step_reward)
+        if isinstance(score_raw, (list, tuple)):
+            # ALFWorld returns accumulated score, we want step reward
+            # For simplicity, check if task is done - that's when reward matters
+            reward = 0.0
+        else:
+            reward = float(score_raw) if score_raw is not None else 0.0
+        
+        # Handle dones
+        done_raw = dones_list[0] if isinstance(dones_list, (list, tuple)) else dones_list
         done = bool(done_raw) if done_raw is not None else False
+        
+        # Handle infos - it's a list of dicts
+        info = infos_list[0] if isinstance(infos_list, (list, tuple)) and len(infos_list) > 0 else {}
+        if not isinstance(info, dict):
+            info = {}
+        
+        # Check if task was won (successful completion)
+        if done:
+            won = info.get('won', [False])
+            if isinstance(won, (list, tuple)):
+                won = won[0] if len(won) > 0 else False
+            if won:
+                reward = 1.0  # Task completed successfully
         
         state["current_obs"] = obs
         state["total_reward"] += reward
         state["done"] = done
-        state["admissible_commands"] = info.get('admissible_commands', [[]])[0] if info else []
+        state["admissible_commands"] = info.get('admissible_commands', [])
         
         return obs, reward, done
     

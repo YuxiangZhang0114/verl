@@ -81,6 +81,14 @@ class NaiveRewardManager(AbstractRewardManager):
             rollout_reward_scores = data_item.non_tensor_batch.get("reward_scores", {})
             extra_info["num_turns"] = num_turns
             extra_info["rollout_reward_scores"] = rollout_reward_scores
+            
+            # Add tool execution results from extra_fields (for environment-based rewards like ALFWorld)
+            if "success" in data_item.non_tensor_batch:
+                extra_info["success"] = data_item.non_tensor_batch["success"]
+            if "total_reward" in data_item.non_tensor_batch:
+                extra_info["total_reward"] = data_item.non_tensor_batch["total_reward"]
+            if "tool_rewards" in data_item.non_tensor_batch:
+                extra_info["tool_rewards"] = data_item.non_tensor_batch["tool_rewards"]
 
             score = self.compute_score(
                 data_source=data_source,
