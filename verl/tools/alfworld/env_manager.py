@@ -149,13 +149,14 @@ class ALFWorldEnvManager:
                 }
         logger.info(f"Loaded {len(self.task_registry)} tasks from {parquet_path}")
     
-    async def create_env(self, task_id: str, request_id: str) -> tuple[str, str]:
+    async def create_env(self, task_id: str, request_id: str, game_file_path: str = "") -> tuple[str, str]:
         """
         Create an environment for a specific task and request.
         
         Args:
             task_id: The task identifier from the dataset.
             request_id: Unique identifier for this request/episode.
+            game_file_path: Optional path to specific game file for task matching.
             
         Returns:
             tuple[str, str]: (initial_observation, goal_description)
@@ -175,10 +176,10 @@ class ALFWorldEnvManager:
                     "Please install with: pip install alfworld && alfworld-download"
                 )
             
-            return await self._create_real_env(task_id, request_id)
+            return await self._create_real_env(task_id, request_id, game_file_path)
     
-    async def _create_real_env(self, task_id: str, request_id: str) -> tuple[str, str]:
-        """Create a real ALFWorld TextWorld environment."""
+    async def _create_real_env(self, task_id: str, request_id: str, game_file_path: str = "") -> tuple[str, str]:
+        """Create a real ALFWorld TextWorld environment with optional specific game file."""
         try:
             from alfworld.agents.environment import get_environment
             import yaml
@@ -242,9 +243,35 @@ class ALFWorldEnvManager:
         task_info = self.task_registry.get(task_id, {})
         task_type = task_info.get("task_type", "unknown")
         
+        # If no game_file_path provided, try to get from task_registry
+        if not game_file_path:
+            game_file_path = task_info.get("game_file_path", "")
+        
         try:
-            # Reset environment to get a new game - ALFWorld returns batched results
-            obs_list, info = self._shared_env.reset()
+            # Try to load specific game if game_file_path is provided
+            if game_file_path and hasattr(self._shared_env, 'game_files'):
+                original_game_files = self._shared_env.game_files.copy()
+                
+                # Find matching game files
+                matching_games = [g for g in original_game_files if game_file_path in g]
+                
+                if matching_games:
+                    # Temporarily replace game_files with only the matching game
+                    self._shared_env.game_files = matching_games
+                    logger.debug(f"Loading specific game: {matching_games[0]}")
+                    obs_list, info = self._shared_env.reset()
+                    # Restore original game_files
+                    self._shared_env.game_files = original_game_files
+                else:
+                    logger.warning(
+                        f"Game file '{game_file_path}' not found in available games. "
+                        f"Using random game instead."
+                    )
+                    obs_list, info = self._shared_env.reset()
+            else:
+                # No specific game requested, use random
+                obs_list, info = self._shared_env.reset()
+            
             obs = obs_list[0] if isinstance(obs_list, list) else obs_list
         except Exception as e:
             raise RuntimeError(

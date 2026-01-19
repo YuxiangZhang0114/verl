@@ -109,6 +109,7 @@ class ALFWorldActionTool(BaseTool):
             task_id = None
             task_type = None
             walkthrough = []
+            game_file_path = ""
             
             for tool_name in agent_data.tools_kwargs:
                 create_kwargs = agent_data.tools_kwargs[tool_name].get("create_kwargs", {})
@@ -116,6 +117,7 @@ class ALFWorldActionTool(BaseTool):
                     task_id = create_kwargs["task_id"]
                     task_type = create_kwargs.get("task_type", "unknown")
                     walkthrough = create_kwargs.get("walkthrough", [])
+                    game_file_path = create_kwargs.get("game_file_path", "")
                     break
             
             if task_id is None:
@@ -127,11 +129,14 @@ class ALFWorldActionTool(BaseTool):
                 self.env_manager.task_registry[task_id] = {
                     "task_type": task_type,
                     "walkthrough": walkthrough,
+                    "game_file_path": game_file_path,
                 }
                 logger.debug(f"Registered task {task_id} with {len(walkthrough)} walkthrough steps")
             
-            # Create environment
-            initial_obs, goal = await self.env_manager.create_env(task_id, agent_data.request_id)
+            # Create environment with specific game file
+            initial_obs, goal = await self.env_manager.create_env(
+                task_id, agent_data.request_id, game_file_path=game_file_path
+            )
             
             # Store in extra_fields
             agent_data.extra_fields["alfworld_env"] = {

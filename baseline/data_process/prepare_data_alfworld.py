@@ -192,12 +192,14 @@ Think about what you need to do and start executing actions."""
     ]
     
     # 构建 tools_kwargs - 所有工具共享同一个 task_id 和任务信息
+    game_file_path = row.get("game_file_path", "")
     tools_kwargs = {
         tool_name: {
             "create_kwargs": {
                 "task_id": task_id,
                 "task_type": task_type,
                 "walkthrough": walkthrough,  # 用于模拟环境判断成功
+                "game_file_path": game_file_path,  # 用于加载特定游戏
             }
         }
         for tool_name in ALFWORLD_TOOLS
