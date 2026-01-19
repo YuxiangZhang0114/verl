@@ -105,16 +105,30 @@ class ALFWorldActionTool(BaseTool):
             tuple[str, str]: (initial_observation, goal)
         """
         if "alfworld_env" not in agent_data.extra_fields:
-            # Get task_id from tools_kwargs
+            # Get task info from tools_kwargs
             task_id = None
+            task_type = None
+            walkthrough = []
+            
             for tool_name in agent_data.tools_kwargs:
                 create_kwargs = agent_data.tools_kwargs[tool_name].get("create_kwargs", {})
                 if "task_id" in create_kwargs:
                     task_id = create_kwargs["task_id"]
+                    task_type = create_kwargs.get("task_type", "unknown")
+                    walkthrough = create_kwargs.get("walkthrough", [])
                     break
             
             if task_id is None:
                 raise ValueError("task_id not found in tools_kwargs")
+            
+            # Dynamically register task info if not already registered
+            # This ensures the simulated environment has the walkthrough information
+            if task_id not in self.env_manager.task_registry:
+                self.env_manager.task_registry[task_id] = {
+                    "task_type": task_type,
+                    "walkthrough": walkthrough,
+                }
+                logger.debug(f"Registered task {task_id} with {len(walkthrough)} walkthrough steps")
             
             # Create environment
             initial_obs, goal = await self.env_manager.create_env(task_id, agent_data.request_id)

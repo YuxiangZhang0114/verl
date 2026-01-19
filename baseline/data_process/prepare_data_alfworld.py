@@ -191,12 +191,13 @@ Think about what you need to do and start executing actions."""
         {"role": "user", "content": user_content},
     ]
     
-    # 构建 tools_kwargs - 所有工具共享同一个 task_id
+    # 构建 tools_kwargs - 所有工具共享同一个 task_id 和任务信息
     tools_kwargs = {
         tool_name: {
             "create_kwargs": {
                 "task_id": task_id,
                 "task_type": task_type,
+                "walkthrough": walkthrough,  # 用于模拟环境判断成功
             }
         }
         for tool_name in ALFWORLD_TOOLS

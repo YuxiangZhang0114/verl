@@ -146,6 +146,9 @@ class ALFWorldEnvManager:
             
         Returns:
             tuple[str, str]: (initial_observation, goal_description)
+            
+        Raises:
+            RuntimeError: If ALFWorld is not available or environment creation fails.
         """
         async with self._env_lock:
             if request_id in self.active_envs:
@@ -154,14 +157,12 @@ class ALFWorldEnvManager:
                 return state["initial_obs"], state["goal"]
             
             if not self._check_alfworld_available():
-                # Fallback to simulated environment
-                return self._create_simulated_env(task_id, request_id)
+                raise RuntimeError(
+                    "ALFWorld package is not installed. "
+                    "Please install with: pip install alfworld && alfworld-download"
+                )
             
-            try:
-                return await self._create_real_env(task_id, request_id)
-            except Exception as e:
-                logger.warning(f"Failed to create real ALFWorld env: {e}. Using simulated env.")
-                return self._create_simulated_env(task_id, request_id)
+            return await self._create_real_env(task_id, request_id)
     
     async def _create_real_env(self, task_id: str, request_id: str) -> tuple[str, str]:
         """Create a real ALFWorld TextWorld environment."""
@@ -373,21 +374,37 @@ class ALFWorldEnvManager:
     def _actions_match(self, action: str, expected: str) -> bool:
         """Check if action matches expected action (with some flexibility)."""
         # Normalize actions
-        action = action.replace("_", " ").strip()
-        expected = expected.replace("_", " ").strip()
+        action = action.replace("_", " ").strip().lower()
+        expected = expected.replace("_", " ").strip().lower()
         
         # Exact match
         if action == expected:
             return True
         
-        # Check if key parts match
+        # Check if key parts match (verb + main target)
         action_parts = action.split()
         expected_parts = expected.split()
         
+        if not action_parts or not expected_parts:
+            return False
+        
+        # Verb must match
+        if action_parts[0] != expected_parts[0]:
+            return False
+        
+        # For actions with targets, check if target overlaps
         if len(action_parts) >= 2 and len(expected_parts) >= 2:
-            # Match action verb and target
-            if action_parts[0] == expected_parts[0]:
-                return True
+            # Extract key target words (ignore prepositions like "to", "from", "in", "on")
+            prepositions = {"to", "from", "in", "on", "with", "in/on"}
+            action_targets = [w for w in action_parts[1:] if w not in prepositions]
+            expected_targets = [w for w in expected_parts[1:] if w not in prepositions]
+            
+            # Check if any target word matches
+            if action_targets and expected_targets:
+                # At least 50% of expected target words should match
+                matches = sum(1 for t in expected_targets if t in action_targets)
+                if matches >= len(expected_targets) * 0.5:
+                    return True
         
         return False
     
