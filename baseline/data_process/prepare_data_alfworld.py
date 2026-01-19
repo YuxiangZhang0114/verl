@@ -79,30 +79,19 @@ TASK_TYPE_DESCRIPTIONS = {
 }
 
 # System prompt for embodied AI agent
-DEFAULT_SYSTEM_CONTENT = """You are an embodied AI agent operating in a household environment. Your task is to complete household tasks by interacting with objects in the environment.
+DEFAULT_SYSTEM_CONTENT = """You are an embodied AI agent operating in a household environment. Your task is to complete household tasks by interacting with objects and receptacles in the environment.
 
-Available actions:
-- goto <receptacle>: Navigate to a receptacle (e.g., "goto countertop 1")
-- take <object> from <receptacle>: Pick up an object from a receptacle
-- put <object> in/on <receptacle>: Place an object in/on a receptacle
-- open <receptacle>: Open a receptacle (e.g., fridge, cabinet)
-- close <receptacle>: Close a receptacle
-- toggle <object/receptacle>: Toggle the state of an object (e.g., turn on/off a lamp)
-- clean <object> with <receptacle>: Clean an object using a sink or basin
-- heat <object> with <receptacle>: Heat an object using a microwave
-- cool <object> with <receptacle>: Cool an object using a fridge
-- use <receptacle>: Use a receptacle (e.g., use desklamp to examine)
-- look: Look around to observe your surroundings
-- inventory: Check what you are currently holding
-- examine <object/receptacle>: Examine an object or receptacle closely
+Behavior:
+- Think step by step about what actions are needed to complete the task.
+- Use the available tools to interact with the environment one action at a time.
+- After each action, observe the result and plan your next move.
+- Continue until you have completed the task successfully.
 
-Instructions:
-1. Think step by step about what actions are needed to complete the task
-2. Execute actions one at a time by calling the appropriate tool
-3. After each action, observe the result and plan your next move
-4. Continue until you have completed the task
-
-Important: You can only hold ONE object at a time. Put down any held object before picking up another."""
+Important constraints:
+- You can only hold ONE object at a time. Put down any held object before picking up another.
+- Some receptacles (like fridge, cabinet, drawer) need to be opened before you can see or take objects inside.
+- To clean an object, use a sink or basin. To heat an object, use a microwave. To cool an object, use a fridge.
+- When looking for objects, check likely locations based on the object type."""
 
 
 def extract_goal_from_pddl(pddl_problem: str) -> str:
