@@ -37,7 +37,7 @@ python3 -m verl.trainer.main_ppo \
     trainer.default_local_dir=$SAVE_PATH \
     data.max_prompt_length=2048 \
     data.max_response_length=8192 \
-    actor_rollout_ref.model.path=/models/qwen3_4b_instruct_2507 \
+    actor_rollout_ref.model.path=Qwen/Qwen3-4B-Instruct-2507 \
     actor_rollout_ref.model.use_remove_padding=True \
     actor_rollout_ref.model.lora_rank=16 \
     actor_rollout_ref.model.lora_alpha=16 \
