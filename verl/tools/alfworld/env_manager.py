@@ -340,7 +340,7 @@ class ALFWorldEnvManager:
             "current_obs": initial_obs,
             "goal": goal,
             "done": False,
-            "total_reward": 0.0,
+            "won": False,  # Track if task was completed successfully
             "steps": 0,
             "walkthrough": walkthrough,
             "current_step_idx": 0,
@@ -451,24 +451,30 @@ class ALFWorldEnvManager:
         
         # ALFWorld expects a list of actions (batched), returns 4 values
         # observation, reward, done, info = env.step([action])
-        obs_list, reward_list, done_list, info_list = env.step([action])
+        obs_list, reward_list, done_list, info_dict = env.step([action])
         
         # Extract single results from batch (index 0)
         obs = obs_list[0]
-        reward = reward_list[0]
         done = bool(done_list[0])
         
-        # info_list could be a list of dicts or other format
-        info = info_list[0] if isinstance(info_list, (list, tuple)) and len(info_list) > 0 else {}
-        if not isinstance(info, dict):
-            info = {}
+        # info_dict is a dict (not a list) with keys like 'won', 'admissible_commands'
+        # 'won' is a list of bools, one per batch element
+        won_list = info_dict.get('won', [False])
+        won = bool(won_list[0]) if isinstance(won_list, (list, tuple)) else bool(won_list)
+        
+        # Get admissible commands (nested list: [[cmd1, cmd2, ...]])
+        admissible = info_dict.get('admissible_commands', [[]])
+        if isinstance(admissible, (list, tuple)) and len(admissible) > 0:
+            admissible = admissible[0] if isinstance(admissible[0], (list, tuple)) else admissible
+        else:
+            admissible = []
         
         state["current_obs"] = obs
-        state["total_reward"] += reward
         state["done"] = done
-        state["admissible_commands"] = info.get('admissible_commands', [])
+        state["won"] = won  # Track if task was completed successfully
+        state["admissible_commands"] = admissible
         
-        return obs, reward, done
+        return obs, 0.0, done  # No process reward, only result reward at the end
     
     def _simulated_step(self, request_id: str, action: str) -> tuple[str, float, bool]:
         """Execute action in simulated environment."""
@@ -487,8 +493,8 @@ class ALFWorldEnvManager:
                 # Check if task is complete
                 if state["current_step_idx"] >= len(walkthrough):
                     state["done"] = True
-                    state["total_reward"] = 1.0
-                    return "Task completed successfully!", 1.0, True
+                    state["won"] = True  # Task completed successfully
+                    return "Task completed successfully!", 0.0, True
                 
                 # Generate appropriate observation
                 obs = self._generate_step_observation(action_lower, state)
@@ -500,6 +506,7 @@ class ALFWorldEnvManager:
         # Check for max steps
         if state["steps"] >= 50:
             state["done"] = True
+            state["won"] = False  # Task failed
             return "Maximum steps reached. Task failed.", 0.0, True
         
         return obs, 0.0, False
@@ -626,6 +633,9 @@ class ALFWorldEnvManager:
         return state.get("done", True) if state else True
     
     def get_total_reward(self, request_id: str) -> float:
-        """Get the total reward for an episode."""
+        """Get the result reward for an episode (1.0 if won, 0.0 otherwise)."""
         state = self.env_states.get(request_id)
-        return state.get("total_reward", 0.0) if state else 0.0
+        if state is None:
+            return 0.0
+        # Only result reward: 1.0 if task completed successfully
+        return 1.0 if state.get("won", False) else 0.0

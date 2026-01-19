@@ -32,9 +32,6 @@ from .env_manager import ALFWorldEnvManager
 logger = logging.getLogger(__name__)
 logger.setLevel(os.getenv("VERL_LOGGING_LEVEL", "WARN"))
 
-# Step penalty to encourage efficient solutions
-STEP_PENALTY = -0.01
-
 
 class ALFWorldActionTool(BaseTool):
     """
@@ -187,38 +184,42 @@ class ALFWorldActionTool(BaseTool):
         try:
             action_str = self._get_action_string(parameters)
         except Exception as e:
-            return ToolResponse(text=f"Error formatting action: {e}"), STEP_PENALTY, {}
+            return ToolResponse(text=f"Error formatting action: {e}"), 0.0, {}
         
         # Execute action in environment
         try:
             obs, reward, done = await self.env_manager.step(agent_data.request_id, action_str)
         except Exception as e:
             logger.warning(f"Error executing action: {e}")
-            return ToolResponse(text=f"Error executing action: {e}"), STEP_PENALTY, {}
-        
-        # Calculate step reward
-        step_reward = reward + STEP_PENALTY
+            return ToolResponse(text=f"Error executing action: {e}"), 0.0, {}
         
         # Update extra_fields with done status
         env_state["done"] = done
-        env_state["last_reward"] = reward
         
-        # Build response
-        if done and reward > 0:
+        # Only give reward at the end (result reward only, no process reward)
+        # Check if task was won via info dict
+        env_state_info = self.env_manager.get_env_state(agent_data.request_id)
+        won = env_state_info.get("won", False)
+        
+        # Result reward: 1.0 if task completed successfully, 0.0 otherwise
+        if done and won:
+            final_reward = 1.0
             response_text = f"{obs}\n\n✓ Task completed successfully!"
         elif done:
+            final_reward = 0.0
             response_text = f"{obs}\n\n✗ Task failed."
         else:
+            final_reward = 0.0
             response_text = obs
         
         metrics = {
             "action": action_str,
-            "reward": reward,
             "done": done,
-            "steps": self.env_manager.get_env_state(agent_data.request_id).get("steps", 0),
+            "won": won,
+            "steps": env_state_info.get("steps", 0),
         }
         
-        return ToolResponse(text=response_text), step_reward, metrics
+        return ToolResponse(text=response_text), final_reward, metrics
     
     async def calc_reward(self, instance_id: str, **kwargs) -> float:
         """Calculate the final reward for the episode."""
