@@ -185,7 +185,7 @@ class ALFWorldEnvManager:
         except ImportError as e:
             raise RuntimeError(f"Failed to import ALFWorld modules: {e}")
         
-        # Load ALFWorld config
+        # Load ALFWorld config (once)
         if not hasattr(self, '_alfworld_config'):
             try:
                 # Use our bundled config file
@@ -224,30 +224,39 @@ class ALFWorldEnvManager:
             # Force TextWorld environment type
             self._alfworld_config['env']['type'] = 'AlfredTWEnv'
         
+        # Create shared environment instance (once per worker)
+        if not hasattr(self, '_shared_env') or self._shared_env is None:
+            try:
+                logger.info("Creating shared ALFWorld environment instance...")
+                EnvClass = get_environment(self._alfworld_config['env']['type'])
+                self._shared_env = EnvClass(self._alfworld_config, train_eval='train')
+                self._shared_env = self._shared_env.init_env(batch_size=1)
+                logger.info("Shared ALFWorld environment created successfully")
+            except Exception as e:
+                raise RuntimeError(
+                    f"Failed to create ALFWorld environment: {e}. "
+                    "Make sure ALFWorld is properly installed and configured."
+                )
+        
         # Get task info from registry
         task_info = self.task_registry.get(task_id, {})
         task_type = task_info.get("task_type", "unknown")
         
         try:
-            # Get environment class and create instance
-            EnvClass = get_environment(self._alfworld_config['env']['type'])
-            env = EnvClass(self._alfworld_config, train_eval='train')
-            env = env.init_env(batch_size=1)
-            
-            # Reset environment - ALFWorld returns batched results
-            obs_list, info = env.reset()
+            # Reset environment to get a new game - ALFWorld returns batched results
+            obs_list, info = self._shared_env.reset()
             obs = obs_list[0] if isinstance(obs_list, list) else obs_list
         except Exception as e:
             raise RuntimeError(
-                f"Failed to create ALFWorld environment: {e}. "
+                f"Failed to reset ALFWorld environment: {e}. "
                 "Make sure ALFWorld is properly installed and configured."
             )
         
         # Extract goal from observation
         goal = self._extract_goal(obs, {"task_type": task_type})
         
-        # Store environment and state
-        self.active_envs[request_id] = env
+        # Store reference to shared environment and state
+        self.active_envs[request_id] = self._shared_env
         self.env_states[request_id] = {
             "task_id": task_id,
             "task_type": task_type,
@@ -378,7 +387,9 @@ class ALFWorldEnvManager:
         if state.get("simulated", False):
             return self._simulated_step(request_id, action)
         else:
-            return await self._real_step(request_id, action)
+            # Use lock to prevent concurrent access to shared environment
+            async with self._env_lock:
+                return await self._real_step(request_id, action)
     
     async def _real_step(self, request_id: str, action: str) -> tuple[str, float, bool]:
         """Execute action in real ALFWorld environment."""
@@ -388,10 +399,14 @@ class ALFWorldEnvManager:
         # ALFWorld expects a list of actions (batched)
         obs_list, reward_list, done_list, info = env.step([action])
         
-        # Extract single results from batch
+        # Extract single results from batch and convert to proper types
         obs = obs_list[0] if isinstance(obs_list, list) else obs_list
-        reward = reward_list[0] if isinstance(reward_list, list) else reward_list
-        done = done_list[0] if isinstance(done_list, list) else done_list
+        reward_raw = reward_list[0] if isinstance(reward_list, list) else reward_list
+        done_raw = done_list[0] if isinstance(done_list, list) else done_list
+        
+        # Convert to standard Python types
+        reward = float(reward_raw) if reward_raw is not None else 0.0
+        done = bool(done_raw) if done_raw is not None else False
         
         state["current_obs"] = obs
         state["total_reward"] += reward
