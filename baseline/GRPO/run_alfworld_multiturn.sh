@@ -74,7 +74,7 @@ python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.actor.ulysses_sequence_parallel_size=${sp_size} \
     actor_rollout_ref.ref.ulysses_sequence_parallel_size=${sp_size} \
     trainer.critic_warmup=0 \
-    trainer.val_before_train=False \
+    trainer.val_before_train=True \
     trainer.logger='["console","wandb"]' \
     trainer.project_name='alfworld-grpo' \
     trainer.experiment_name=$EXPERIMENT_NAME \
