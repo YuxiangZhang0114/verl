@@ -179,8 +179,7 @@ class ALFWorldEnvManager:
         """Create a real ALFWorld TextWorld environment."""
         try:
             from alfworld.agents.environment import get_environment
-            import alfworld.agents.modules.generic as generic
-            import alfworld
+            import yaml
         except ImportError as e:
             raise RuntimeError(f"Failed to import ALFWorld modules: {e}")
         
@@ -195,7 +194,25 @@ class ALFWorldEnvManager:
                         f"ALFWorld config file not found at: {config_path}"
                     )
                 
-                self._alfworld_config = generic.load_config(config_path)
+                with open(config_path, 'r') as f:
+                    self._alfworld_config = yaml.safe_load(f)
+                
+                # Expand environment variables in paths
+                alfworld_data = os.environ.get('ALFWORLD_DATA', os.path.expanduser('~/.cache/alfworld'))
+                
+                def expand_path(path_str):
+                    if isinstance(path_str, str):
+                        return path_str.replace('$ALFWORLD_DATA', alfworld_data)
+                    return path_str
+                
+                # Expand paths in config
+                if 'dataset' in self._alfworld_config:
+                    for key in self._alfworld_config['dataset']:
+                        self._alfworld_config['dataset'][key] = expand_path(self._alfworld_config['dataset'][key])
+                if 'logic' in self._alfworld_config:
+                    for key in self._alfworld_config['logic']:
+                        self._alfworld_config['logic'][key] = expand_path(self._alfworld_config['logic'][key])
+                
                 logger.info(f"Loaded ALFWorld config from: {config_path}")
             except Exception as e:
                 raise RuntimeError(
