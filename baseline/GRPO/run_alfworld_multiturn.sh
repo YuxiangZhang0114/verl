@@ -39,8 +39,6 @@ python3 -m verl.trainer.main_ppo \
     data.max_response_length=8192 \
     actor_rollout_ref.model.path=Qwen/Qwen3-4B-Instruct-2507 \
     actor_rollout_ref.model.use_remove_padding=True \
-    actor_rollout_ref.model.lora_rank=16 \
-    actor_rollout_ref.model.lora_alpha=16 \
     actor_rollout_ref.model.enable_gradient_checkpointing=True \
     actor_rollout_ref.actor.optim.lr=1e-6 \
     actor_rollout_ref.actor.optim.lr_warmup_steps=0 \
@@ -77,6 +75,10 @@ python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.ref.log_prob_use_dynamic_bsz=True \
     actor_rollout_ref.ref.log_prob_max_token_len_per_gpu=8192 \
     actor_rollout_ref.ref.ulysses_sequence_parallel_size=${sp_size} \
+    actor_rollout_ref.rollout.multi_turn.enable=True \
+    actor_rollout_ref.rollout.multi_turn.max_assistant_turns=16 \
+    actor_rollout_ref.rollout.multi_turn.format=hermes \
+    actor_rollout_ref.rollout.multi_turn.max_tool_response_length=2048 \
     actor_rollout_ref.ref.fsdp_config.param_offload=True \
     trainer.experiment_name=$EXPERIMENT_NAME \
     trainer.total_epochs=10 \
