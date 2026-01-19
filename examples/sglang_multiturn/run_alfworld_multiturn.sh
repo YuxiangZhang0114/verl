@@ -27,7 +27,7 @@ python3 -m verl.trainer.main_ppo \
     --config-path="$CONFIG_PATH" \
     --config-name='alfworld_multiturn_grpo' \
     algorithm.adv_estimator=grpo \
-    data.train_batch_size=128 \
+    data.train_batch_size=8 \
     data.max_prompt_length=2048 \
     data.max_response_length=4096 \
     data.filter_overlong_prompts=True \
@@ -68,7 +68,7 @@ python3 -m verl.trainer.main_ppo \
     trainer.nnodes=1 \
     trainer.save_freq=100 \
     trainer.test_freq=50 \
-    trainer.val_before_train=True \
+    trainer.val_before_train=False \
     data.train_files="$DATA_DIR/train.parquet" \
     data.val_files="$DATA_DIR/eval_id.parquet" \
     actor_rollout_ref.rollout.multi_turn.tool_config_path="$PROJECT_DIR/examples/sglang_multiturn/config/tool_config/alfworld_tool_config.yaml" \
