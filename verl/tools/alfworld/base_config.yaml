@@ -8,6 +8,10 @@ env:
   max_nb_steps_per_episode: 50
   regen_game_files: false
   goal_desc_human_anns_prob: 0.0
+  expert_type: 'handcoded'
+  expert_timeout_steps: 150
+  expert_timeout_penalty: 0.0
+  step_limit: 50
   
 dataset:
   data_path: '$ALFWORLD_DATA/json_2.1.1/train'
