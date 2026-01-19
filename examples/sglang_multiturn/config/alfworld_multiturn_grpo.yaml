@@ -1,0 +1,184 @@
+# ALFWorld Multi-turn GRPO Training Configuration
+# This configuration trains an embodied AI agent on ALFWorld tasks using GRPO.
+
+hydra:
+  searchpath:
+    - file://verl/trainer/config
+
+defaults:
+  - ppo_trainer
+  - _self_
+
+# Data configuration
+data:
+  # Maximum prompt length (system prompt + task description)
+  max_prompt_length: 2048
+  
+  # Maximum response length (allows for multi-turn interactions)
+  max_response_length: 4096
+  
+  # Training batch size
+  train_batch_size: 128
+  
+  # Return raw chat format for multi-turn
+  return_raw_chat: True
+  
+  # Training data path
+  train_files: data/alfworld_train/train.parquet
+  
+  # Validation data path (in-distribution)
+  val_files: data/alfworld_train/eval_id.parquet
+  
+  # Tool configuration path (for tokenizer to include tool schemas)
+  tool_config_path: examples/sglang_multiturn/config/tool_config/alfworld_tool_config.yaml
+
+# Actor, Rollout, and Reference model configuration
+actor_rollout_ref:
+  # Use hybrid engine for efficiency
+  hybrid_engine: True
+  
+  # Model configuration
+  model:
+    # Path to the base model (can be overridden via command line)
+    path: Qwen/Qwen2.5-7B-Instruct
+    
+    # Enable flash attention for efficiency
+    enable_gradient_checkpointing: True
+  
+  # Actor configuration
+  actor:
+    # PPO clip range
+    ppo_clip: 0.2
+    
+    # Entropy coefficient to encourage exploration
+    entropy_coeff: 0.01
+    
+    # Learning rate
+    lr: 1e-6
+    
+    # Use KL loss for stability
+    use_kl_loss: True
+    
+    # KL loss coefficient
+    kl_loss_coef: 0.1
+    
+    # Gradient clipping
+    grad_clip: 1.0
+  
+  # Rollout configuration
+  rollout:
+    name: sglang
+    
+    # Temperature for sampling
+    temperature: 0.7
+    
+    # Top-p sampling
+    top_p: 0.9
+    
+    # Multi-turn configuration
+    multi_turn:
+      enable: True
+      
+      # Maximum number of assistant turns (tool calls + responses)
+      max_assistant_turns: 20
+      
+      # Maximum number of user turns (tool responses)
+      max_user_turns: 20
+      
+      # Maximum parallel tool calls per turn
+      max_parallel_calls: 1
+      
+      # Maximum tool response length (characters)
+      max_tool_response_length: 1024
+      
+      # Truncation side for long tool responses
+      tool_response_truncate_side: right
+      
+      # Tool configuration path
+      tool_config_path: examples/sglang_multiturn/config/tool_config/alfworld_tool_config.yaml
+      
+      # Tool call format (hermes, llama, mistral, gpt-oss)
+      format: hermes
+      
+      # No interaction config - we use pure tool-based approach
+      interaction_config_path: null
+      
+      # Agent loop type
+      agent_name: tool_agent
+
+# Algorithm configuration
+algorithm:
+  # Use GRPO for advantage estimation
+  adv_estimator: grpo
+  
+  # Normalize advantages by std
+  norm_adv_by_std_in_grpo: True
+  
+  # Discount factor (1.0 for episodic tasks)
+  gamma: 1.0
+  
+  # GAE lambda
+  lam: 0.95
+  
+  # Disable KL penalty in reward (using KL loss instead)
+  use_kl_in_reward: False
+
+# Critic configuration
+critic:
+  # Learning rate for critic
+  lr: 1e-5
+  
+  # PPO clip for value function
+  ppo_clip: 0.2
+
+# Reward model configuration (rule-based)
+reward_model:
+  enable: False
+
+# Reward manager configuration
+reward_manager:
+  # Use rule-based reward
+  reward_fn_type: rule
+  
+  # Reward function path (uses default ALFWorld reward)
+  reward_fn_path: null
+
+# Custom reward function for ALFWorld
+custom_reward_function:
+  path: null
+  name: compute_score
+
+# Trainer configuration
+trainer:
+  # Number of training epochs
+  total_epochs: 10
+  
+  # Project name for logging
+  project_name: verl_alfworld
+  
+  # Experiment name
+  experiment_name: alfworld_grpo
+  
+  # Logging backends
+  logger: ["console", "wandb"]
+  
+  # Number of nodes
+  nnodes: 1
+  
+  # GPUs per node
+  n_gpus_per_node: 8
+  
+  # Save frequency (every N iterations)
+  save_freq: 100
+  
+  # Validation frequency
+  test_freq: 50
+  
+  # Run validation before training
+  val_before_train: True
+  
+  # Number of validation generations to log
+  log_val_generations: 10
+  
+  # Checkpoint directory
+  default_local_dir: checkpoints/${trainer.project_name}/${trainer.experiment_name}

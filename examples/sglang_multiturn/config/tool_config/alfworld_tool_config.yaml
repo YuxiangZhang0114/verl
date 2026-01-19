@@ -1,0 +1,230 @@
+# ALFWorld Tool Configuration for VERL
+# This configuration defines all available actions in the ALFWorld environment.
+
+tools:
+  # Navigation tool
+  - class_name: "verl.tools.alfworld.action_tools.GotoTool"
+    config:
+      type: native
+      alfworld_data_path: null  # Uses ALFWORLD_DATA env var if not set
+    tool_schema:
+      type: "function"
+      function:
+        name: "goto"
+        description: "Navigate to a receptacle in the environment. Use this to move to different locations like countertops, cabinets, fridges, etc."
+        parameters:
+          type: "object"
+          properties:
+            target:
+              type: "string"
+              description: "The receptacle to navigate to (e.g., 'countertop 1', 'fridge 1', 'cabinet 2')"
+          required: ["target"]
+
+  # Object manipulation tools
+  - class_name: "verl.tools.alfworld.action_tools.TakeTool"
+    config:
+      type: native
+    tool_schema:
+      type: "function"
+      function:
+        name: "take"
+        description: "Pick up an object from a receptacle. You can only hold one object at a time."
+        parameters:
+          type: "object"
+          properties:
+            object:
+              type: "string"
+              description: "The object to pick up (e.g., 'apple 1', 'mug 2', 'plate 1')"
+            source:
+              type: "string"
+              description: "The receptacle to take the object from (e.g., 'countertop 1', 'fridge 1')"
+          required: ["object", "source"]
+
+  - class_name: "verl.tools.alfworld.action_tools.PutTool"
+    config:
+      type: native
+    tool_schema:
+      type: "function"
+      function:
+        name: "put"
+        description: "Place the object you are holding in/on a receptacle."
+        parameters:
+          type: "object"
+          properties:
+            object:
+              type: "string"
+              description: "The object to put down (must be the object you are currently holding)"
+            target:
+              type: "string"
+              description: "The receptacle to place the object in/on (e.g., 'countertop 1', 'cabinet 1')"
+            preposition:
+              type: "string"
+              description: "The preposition to use ('in' or 'on')"
+              enum: ["in", "on", "in/on"]
+          required: ["object", "target"]
+
+  # Receptacle interaction tools
+  - class_name: "verl.tools.alfworld.action_tools.OpenTool"
+    config:
+      type: native
+    tool_schema:
+      type: "function"
+      function:
+        name: "open"
+        description: "Open a receptacle like a fridge, cabinet, drawer, or microwave."
+        parameters:
+          type: "object"
+          properties:
+            target:
+              type: "string"
+              description: "The receptacle to open (e.g., 'fridge 1', 'cabinet 1', 'drawer 1')"
+          required: ["target"]
+
+  - class_name: "verl.tools.alfworld.action_tools.CloseTool"
+    config:
+      type: native
+    tool_schema:
+      type: "function"
+      function:
+        name: "close"
+        description: "Close a receptacle that was previously opened."
+        parameters:
+          type: "object"
+          properties:
+            target:
+              type: "string"
+              description: "The receptacle to close (e.g., 'fridge 1', 'cabinet 1')"
+          required: ["target"]
+
+  - class_name: "verl.tools.alfworld.action_tools.ToggleTool"
+    config:
+      type: native
+    tool_schema:
+      type: "function"
+      function:
+        name: "toggle"
+        description: "Toggle the state of an object, such as turning a lamp on or off."
+        parameters:
+          type: "object"
+          properties:
+            target:
+              type: "string"
+              description: "The object to toggle (e.g., 'desklamp 1', 'floorlamp 1')"
+          required: ["target"]
+
+  # Object transformation tools
+  - class_name: "verl.tools.alfworld.action_tools.CleanTool"
+    config:
+      type: native
+    tool_schema:
+      type: "function"
+      function:
+        name: "clean"
+        description: "Clean an object using a sink or basin. The object must be in your hand."
+        parameters:
+          type: "object"
+          properties:
+            object:
+              type: "string"
+              description: "The object to clean (must be holding it)"
+            receptacle:
+              type: "string"
+              description: "The sink or basin to use for cleaning (e.g., 'sinkbasin 1')"
+          required: ["object", "receptacle"]
+
+  - class_name: "verl.tools.alfworld.action_tools.HeatTool"
+    config:
+      type: native
+    tool_schema:
+      type: "function"
+      function:
+        name: "heat"
+        description: "Heat an object using a microwave. The object must be in your hand."
+        parameters:
+          type: "object"
+          properties:
+            object:
+              type: "string"
+              description: "The object to heat (must be holding it)"
+            receptacle:
+              type: "string"
+              description: "The microwave to use (e.g., 'microwave 1')"
+          required: ["object", "receptacle"]
+
+  - class_name: "verl.tools.alfworld.action_tools.CoolTool"
+    config:
+      type: native
+    tool_schema:
+      type: "function"
+      function:
+        name: "cool"
+        description: "Cool an object using a fridge. The object must be in your hand."
+        parameters:
+          type: "object"
+          properties:
+            object:
+              type: "string"
+              description: "The object to cool (must be holding it)"
+            receptacle:
+              type: "string"
+              description: "The fridge to use (e.g., 'fridge 1')"
+          required: ["object", "receptacle"]
+
+  # Utility tools
+  - class_name: "verl.tools.alfworld.action_tools.UseTool"
+    config:
+      type: native
+    tool_schema:
+      type: "function"
+      function:
+        name: "use"
+        description: "Use a receptacle or object, such as turning on a desklamp to examine something."
+        parameters:
+          type: "object"
+          properties:
+            target:
+              type: "string"
+              description: "The object or receptacle to use (e.g., 'desklamp 1')"
+          required: ["target"]
+
+  - class_name: "verl.tools.alfworld.action_tools.LookTool"
+    config:
+      type: native
+    tool_schema:
+      type: "function"
+      function:
+        name: "look"
+        description: "Look around to observe your current surroundings and see what objects and receptacles are nearby."
+        parameters:
+          type: "object"
+          properties: {}
+          required: []
+
+  - class_name: "verl.tools.alfworld.action_tools.InventoryTool"
+    config:
+      type: native
+    tool_schema:
+      type: "function"
+      function:
+        name: "inventory"
+        description: "Check what object you are currently holding."
+        parameters:
+          type: "object"
+          properties: {}
+          required: []
+
+  - class_name: "verl.tools.alfworld.action_tools.ExamineTool"
+    config:
+      type: native
+    tool_schema:
+      type: "function"
+      function:
+        name: "examine"
+        description: "Examine an object or receptacle closely to see more details about it."
+        parameters:
+          type: "object"
+          properties:
+            target:
+              type: "string"
+              description: "The object or receptacle to examine (e.g., 'apple 1', 'countertop 1')"
+          required: ["target"]
