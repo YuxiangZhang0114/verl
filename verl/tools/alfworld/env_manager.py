@@ -225,37 +225,46 @@ class ALFWorldEnvManager:
             # Force TextWorld environment type
             self._alfworld_config['env']['type'] = 'AlfredTWEnv'
         
-        # Use environment pool to avoid repeated initialization
-        # First, ensure we have a template environment with cached game files
-        if not hasattr(self, '_env_pool'):
-            self._env_pool = []  # Pool of available environments
-            self._env_in_use = {}  # request_id -> env mapping
-            self._cached_game_files = None
-            self._env_class = None
+        # Load cached game files list (save to local file to avoid repeated scanning)
+        if not hasattr(self, '_cached_game_files') or self._cached_game_files is None:
+            cache_file = os.path.join(os.path.dirname(__file__), 'game_files_cache.json')
+            
+            if os.path.exists(cache_file):
+                # Load from cache
+                import json
+                with open(cache_file, 'r') as f:
+                    self._cached_game_files = json.load(f)
+                logger.info(f"Loaded {len(self._cached_game_files)} game files from cache")
+            else:
+                # First time: scan and save to cache
+                logger.info("First run: scanning game files (this only happens once)...")
+                EnvClass = get_environment(self._alfworld_config['env']['type'])
+                temp_env = EnvClass(self._alfworld_config, train_eval='train')
+                temp_env = temp_env.init_env(batch_size=1)
+                self._cached_game_files = temp_env.game_files.copy()
+                
+                # Save to cache file
+                import json
+                with open(cache_file, 'w') as f:
+                    json.dump(self._cached_game_files, f)
+                logger.info(f"Saved {len(self._cached_game_files)} game files to cache: {cache_file}")
+                
+                # Close temp env
+                if hasattr(temp_env, 'close'):
+                    temp_env.close()
         
-        if self._env_class is None:
-            self._env_class = get_environment(self._alfworld_config['env']['type'])
-        
-        # Try to get an environment from pool, or create a new one
-        if self._env_pool:
-            request_env = self._env_pool.pop()
-            logger.debug(f"Reusing environment from pool (pool size: {len(self._env_pool)})")
-        else:
-            try:
-                request_env = self._env_class(self._alfworld_config, train_eval='train')
-                request_env = request_env.init_env(batch_size=1)
-                # Cache game files list from first environment
-                if self._cached_game_files is None and hasattr(request_env, 'game_files'):
-                    self._cached_game_files = request_env.game_files.copy()
-                    logger.info(f"Cached {len(self._cached_game_files)} game files")
-            except Exception as e:
-                raise RuntimeError(
-                    f"Failed to create ALFWorld environment: {e}. "
-                    "Make sure ALFWorld is properly installed and configured."
-                )
-        
-        # Track this environment as in use
-        self._env_in_use[request_id] = request_env
+        # Create environment for this request
+        try:
+            EnvClass = get_environment(self._alfworld_config['env']['type'])
+            request_env = EnvClass(self._alfworld_config, train_eval='train')
+            # Set cached game files BEFORE init_env to skip scanning
+            request_env.game_files = self._cached_game_files
+            request_env = request_env.init_env(batch_size=1)
+        except Exception as e:
+            raise RuntimeError(
+                f"Failed to create ALFWorld environment: {e}. "
+                "Make sure ALFWorld is properly installed and configured."
+            )
         
         # Get task info from registry
         task_info = self.task_registry.get(task_id, {})
@@ -622,7 +631,6 @@ class ALFWorldEnvManager:
     async def release_env(self, request_id: str) -> None:
         """
         Release an environment after an episode is complete.
-        Return it to the pool for reuse.
         
         Args:
             request_id: The request identifier.
@@ -631,23 +639,12 @@ class ALFWorldEnvManager:
             env = self.active_envs[request_id]
             del self.active_envs[request_id]
             
-            # Return real environments to pool for reuse (not simulated ones)
-            if env != "simulated" and hasattr(self, '_env_pool'):
-                # Return to pool (limit pool size to avoid memory issues)
-                if len(self._env_pool) < 16:
-                    self._env_pool.append(env)
-                    logger.debug(f"Returned environment to pool (pool size: {len(self._env_pool)})")
-                else:
-                    # Pool is full, close this environment
-                    if hasattr(env, "close"):
-                        try:
-                            env.close()
-                        except Exception as e:
-                            logger.warning(f"Error closing environment: {e}")
-        
-        # Also remove from _env_in_use if present
-        if hasattr(self, '_env_in_use') and request_id in self._env_in_use:
-            del self._env_in_use[request_id]
+            # Close the environment to free resources
+            if env != "simulated" and hasattr(env, "close"):
+                try:
+                    env.close()
+                except Exception as e:
+                    logger.warning(f"Error closing environment: {e}")
             
             if request_id in self.env_states:
                 state = self.env_states[request_id]
