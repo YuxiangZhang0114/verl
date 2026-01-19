@@ -27,7 +27,7 @@ python3 -m verl.trainer.main_ppo \
     --config-path="$CONFIG_PATH" \
     --config-name='alfworld_multiturn_grpo' \
     algorithm.adv_estimator=grpo \
-    data.train_batch_size=8 \
+    data.train_batch_size=1 \
     data.max_prompt_length=2048 \
     data.max_response_length=4096 \
     data.filter_overlong_prompts=True \
@@ -50,7 +50,7 @@ python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.rollout.name=sglang \
     actor_rollout_ref.rollout.gpu_memory_utilization=0.85 \
     actor_rollout_ref.rollout.multi_stage_wake_up=True \
-    actor_rollout_ref.rollout.n=8 \
+    actor_rollout_ref.rollout.n=5 \
     actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu=16 \
     actor_rollout_ref.ref.fsdp_config.param_offload=True \
     actor_rollout_ref.rollout.over_sample_rate=0.1 \
