@@ -7,7 +7,8 @@ env:
   domain_randomization: false
   max_nb_steps_per_episode: 50
   regen_game_files: false
-
+  goal_desc_human_anns_prob: 0.0
+  
 dataset:
   data_path: '$ALFWORLD_DATA/json_2.1.1/train'
   eval_ood_data_path: '$ALFWORLD_DATA/json_2.1.1/valid_unseen'
@@ -23,6 +24,10 @@ general:
   training_method: 'dagger'
   use_pretrained: false
   load_pretrained: false
+  save_path: '/tmp/alfworld'
+  observation_type: 'text'
+  visdom: false
+  tensorboard: false
 
 expert:
   expert_timeout_steps: 150
@@ -32,6 +37,9 @@ dagger:
   training:
     max_nb_steps_per_episode: 50
     learn_start_from_zero: false
+    batch_size: 10
 
 evaluate:
   eval_max_nb_steps_per_episode: 50
+  envs:
+    batch_size: 1
