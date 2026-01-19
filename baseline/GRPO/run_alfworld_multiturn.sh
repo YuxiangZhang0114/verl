@@ -15,8 +15,8 @@ function now() {
     date '+%d-%H-%M'
 }
 
-EXPERIMENT_NAME="alfworld_grpo_$(now)"
-SAVE_PATH="/mnt/workspace/checkpoints/alfworld_grpo_qwen3-4b_${EXPERIMENT_NAME}"
+EXPERIMENT_NAME="alfworld_grpo_30b_$(now)"
+SAVE_PATH="/mnt/workspace/checkpoints/alfworld_grpo_30b_${EXPERIMENT_NAME}"
 
 # Sequence parallel size (for long sequences)
 sp_size=1
