@@ -205,7 +205,23 @@ class ToolAgentLoop(AgentLoopBase):
             metrics=agent_data.metrics,
             extra_fields={},
         )
-        output.extra_fields.update({"turn_scores": agent_data.turn_scores, "tool_rewards": agent_data.tool_rewards})
+        
+        # Prepare reward_scores dictionary for reward manager
+        # Sum all tool rewards to get total reward
+        total_tool_reward = sum(agent_data.tool_rewards) if agent_data.tool_rewards else 0.0
+        reward_scores = {"tool_reward": total_tool_reward}
+        
+        # Check if task was successful (for environment-based rewards like ALFWorld)
+        # This provides a success flag that the reward function can use
+        success = total_tool_reward > 0
+        
+        output.extra_fields.update({
+            "turn_scores": agent_data.turn_scores,
+            "tool_rewards": agent_data.tool_rewards,
+            "reward_scores": reward_scores,
+            "success": success,
+            "total_reward": total_tool_reward
+        })
         return output
 
     async def _handle_pending_state(self, agent_data: AgentData, sampling_params: dict[str, Any]) -> AgentState:

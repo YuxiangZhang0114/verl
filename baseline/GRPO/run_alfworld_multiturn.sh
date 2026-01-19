@@ -37,7 +37,7 @@ python3 -m verl.trainer.main_ppo \
     data.max_response_length=8192 \
     trainer.default_local_dir=$SAVE_PATH \
     actor_rollout_ref.rollout.multi_turn.max_tool_response_length=2048 \
-    actor_rollout_ref.model.path=Qwen/Qwen3-4B-Instruct-2507 \
+    actor_rollout_ref.model.path=/models/30B \
     actor_rollout_ref.actor.optim.lr=1e-6 \
     actor_rollout_ref.actor.optim.lr_warmup_steps=0 \
     actor_rollout_ref.model.use_remove_padding=True \
