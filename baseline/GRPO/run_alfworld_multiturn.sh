@@ -55,7 +55,7 @@ python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.rollout.max_model_len=16384 \
     actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu=16 \
     actor_rollout_ref.rollout.log_prob_use_dynamic_bsz=True \
-    actor_rollout_ref.rollout.log_prob_max_token_len_per_gpu=8192 \
+    actor_rollout_ref.rollout.log_prob_max_token_len_per_gpu=16384 \
     actor_rollout_ref.rollout.tensor_model_parallel_size=1 \
     actor_rollout_ref.rollout.name=sglang \
     actor_rollout_ref.rollout.mode=async \
@@ -69,7 +69,7 @@ python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.rollout.agent.default_agent_loop=tool_agent \
     actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu=16 \
     actor_rollout_ref.ref.log_prob_use_dynamic_bsz=True \
-    actor_rollout_ref.ref.log_prob_max_token_len_per_gpu=8192 \
+    actor_rollout_ref.ref.log_prob_max_token_len_per_gpu=16384 \
     actor_rollout_ref.ref.fsdp_config.param_offload=True \
     actor_rollout_ref.actor.ulysses_sequence_parallel_size=${sp_size} \
     actor_rollout_ref.ref.ulysses_sequence_parallel_size=${sp_size} \
