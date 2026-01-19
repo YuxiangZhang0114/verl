@@ -442,51 +442,26 @@ class ALFWorldEnvManager:
                 return await self._real_step(request_id, action)
     
     async def _real_step(self, request_id: str, action: str) -> tuple[str, float, bool]:
-        """Execute action in real ALFWorld environment."""
+        """Execute action in real ALFWorld environment.
+        
+        Reference: DeepAgent/src/envs/alfworld.py step_action method
+        """
         env = self.active_envs[request_id]
         state = self.env_states[request_id]
         
-        # ALFWorld expects a list of actions (batched)
-        # Returns: obs_list, scores_list, dones_list, infos_list
-        step_result = env.step([action])
+        # ALFWorld expects a list of actions (batched), returns 4 values
+        # observation, reward, done, info = env.step([action])
+        obs_list, reward_list, done_list, info_list = env.step([action])
         
-        # Handle different possible return formats
-        if len(step_result) == 4:
-            obs_list, scores_list, dones_list, infos_list = step_result
-        else:
-            logger.warning(f"Unexpected step result format: {len(step_result)} elements")
-            obs_list, scores_list, dones_list = step_result[:3]
-            infos_list = [{}]
+        # Extract single results from batch (index 0)
+        obs = obs_list[0]
+        reward = reward_list[0]
+        done = bool(done_list[0])
         
-        # Extract single results from batch
-        obs = obs_list[0] if isinstance(obs_list, (list, tuple)) else obs_list
-        
-        # Handle scores - could be list, tuple, or single value
-        score_raw = scores_list[0] if isinstance(scores_list, (list, tuple)) else scores_list
-        # Handle case where score is a tuple (accumulated_score, step_reward)
-        if isinstance(score_raw, (list, tuple)):
-            # ALFWorld returns accumulated score, we want step reward
-            # For simplicity, check if task is done - that's when reward matters
-            reward = 0.0
-        else:
-            reward = float(score_raw) if score_raw is not None else 0.0
-        
-        # Handle dones
-        done_raw = dones_list[0] if isinstance(dones_list, (list, tuple)) else dones_list
-        done = bool(done_raw) if done_raw is not None else False
-        
-        # Handle infos - it's a list of dicts
-        info = infos_list[0] if isinstance(infos_list, (list, tuple)) and len(infos_list) > 0 else {}
+        # info_list could be a list of dicts or other format
+        info = info_list[0] if isinstance(info_list, (list, tuple)) and len(info_list) > 0 else {}
         if not isinstance(info, dict):
             info = {}
-        
-        # Check if task was won (successful completion)
-        if done:
-            won = info.get('won', [False])
-            if isinstance(won, (list, tuple)):
-                won = won[0] if len(won) > 0 else False
-            if won:
-                reward = 1.0  # Task completed successfully
         
         state["current_obs"] = obs
         state["total_reward"] += reward
