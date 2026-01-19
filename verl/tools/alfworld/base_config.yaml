@@ -1,0 +1,37 @@
+# ALFWorld Base Configuration for VERL
+# TextWorld environment configuration
+
+env:
+  type: 'AlfredTWEnv'
+  task_types: [1, 2, 3, 4, 5, 6]
+  domain_randomization: false
+  max_nb_steps_per_episode: 50
+  regen_game_files: false
+
+dataset:
+  data_path: '$ALFWORLD_DATA/json_2.1.1/train'
+  eval_ood_data_path: '$ALFWORLD_DATA/json_2.1.1/valid_unseen'
+  eval_id_data_path: '$ALFWORLD_DATA/json_2.1.1/valid_seen'
+
+logic:
+  domain: '$ALFWORLD_DATA/logic/alfred.pddl'
+  grammar: '$ALFWORLD_DATA/logic/alfred.twl2'
+
+general:
+  random_seed: 42
+  use_cuda: false
+  training_method: 'dagger'
+  use_pretrained: false
+  load_pretrained: false
+
+expert:
+  expert_timeout_steps: 150
+  expert_type: 'handcoded'
+
+dagger:
+  training:
+    max_nb_steps_per_episode: 50
+    learn_start_from_zero: false
+
+evaluate:
+  eval_max_nb_steps_per_episode: 50

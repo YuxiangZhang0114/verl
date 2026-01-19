@@ -86,15 +86,26 @@ class ALFWorldEnvManager:
         return cls(alfworld_data_path)
     
     def _check_alfworld_available(self) -> bool:
-        """Check if alfworld package is available."""
+        """Check if alfworld package is available and properly configured."""
         if self._alfworld_available is None:
             try:
-                import alfworld.agents.environment  # noqa: F401
+                from alfworld.agents.environment import get_environment
+                import alfworld.agents.modules.generic as generic
+                # Try to load config to verify data is downloaded
+                config = generic.load_config()
                 self._alfworld_available = True
-            except ImportError:
+                logger.info("ALFWorld environment is available")
+            except ImportError as e:
                 self._alfworld_available = False
-                logger.warning(
-                    "ALFWorld package not installed. Install with: pip install alfworld && alfworld-download"
+                logger.error(
+                    f"ALFWorld package not installed: {e}. "
+                    "Install with: pip install alfworld && alfworld-download"
+                )
+            except Exception as e:
+                self._alfworld_available = False
+                logger.error(
+                    f"ALFWorld configuration error: {e}. "
+                    "Make sure to run: alfworld-download"
                 )
         return self._alfworld_available
     
@@ -166,43 +177,69 @@ class ALFWorldEnvManager:
     
     async def _create_real_env(self, task_id: str, request_id: str) -> tuple[str, str]:
         """Create a real ALFWorld TextWorld environment."""
-        import alfworld.agents.environment as environment
+        try:
+            from alfworld.agents.environment import get_environment
+            import alfworld.agents.modules.generic as generic
+            import alfworld
+        except ImportError as e:
+            raise RuntimeError(f"Failed to import ALFWorld modules: {e}")
         
-        if task_id not in self.task_registry:
-            raise ValueError(f"Task {task_id} not found in registry")
+        # Load ALFWorld config
+        if not hasattr(self, '_alfworld_config'):
+            try:
+                # Use our bundled config file
+                config_path = os.path.join(os.path.dirname(__file__), 'base_config.yaml')
+                
+                if not os.path.exists(config_path):
+                    raise FileNotFoundError(
+                        f"ALFWorld config file not found at: {config_path}"
+                    )
+                
+                self._alfworld_config = generic.load_config(config_path)
+                logger.info(f"Loaded ALFWorld config from: {config_path}")
+            except Exception as e:
+                raise RuntimeError(
+                    f"Failed to load ALFWorld config: {e}. "
+                    "Make sure you have run 'alfworld-download' to download required data."
+                )
+            # Force TextWorld environment type
+            self._alfworld_config['env']['type'] = 'AlfredTWEnv'
         
-        game_content = self.task_registry[task_id]
+        # Get task info from registry
+        task_info = self.task_registry.get(task_id, {})
+        task_type = task_info.get("task_type", "unknown")
         
-        # Create temporary game file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.tw-pddl', delete=False) as f:
-            f.write(game_content.get("pddl_problem", ""))
-            game_file = f.name
+        try:
+            # Get environment class and create instance
+            EnvClass = get_environment(self._alfworld_config['env']['type'])
+            env = EnvClass(self._alfworld_config, train_eval='train')
+            env = env.init_env(batch_size=1)
+            
+            # Reset environment - ALFWorld returns batched results
+            obs_list, info = env.reset()
+            obs = obs_list[0] if isinstance(obs_list, list) else obs_list
+        except Exception as e:
+            raise RuntimeError(
+                f"Failed to create ALFWorld environment: {e}. "
+                "Make sure ALFWorld is properly installed and configured."
+            )
         
-        # Create environment
-        env = environment.AlfredTWEnv(
-            data_path=self.alfworld_data_path,
-            domain_pddl=game_content.get("pddl_domain"),
-            grammar_file=game_content.get("grammar"),
-        )
-        
-        # Reset environment
-        obs, info = env.reset()
-        
-        # Extract goal from observation or game content
-        goal = self._extract_goal(obs, game_content)
+        # Extract goal from observation
+        goal = self._extract_goal(obs, {"task_type": task_type})
         
         # Store environment and state
         self.active_envs[request_id] = env
         self.env_states[request_id] = {
             "task_id": task_id,
+            "task_type": task_type,
             "initial_obs": obs,
             "current_obs": obs,
             "goal": goal,
             "done": False,
             "total_reward": 0.0,
             "steps": 0,
-            "game_file": game_file,
             "action_history": [],
+            "admissible_commands": info.get('admissible_commands', [[]])[0] if info else [],
         }
         
         return obs, goal
@@ -329,11 +366,18 @@ class ALFWorldEnvManager:
         env = self.active_envs[request_id]
         state = self.env_states[request_id]
         
-        obs, reward, done, info = env.step(action)
+        # ALFWorld expects a list of actions (batched)
+        obs_list, reward_list, done_list, info = env.step([action])
+        
+        # Extract single results from batch
+        obs = obs_list[0] if isinstance(obs_list, list) else obs_list
+        reward = reward_list[0] if isinstance(reward_list, list) else reward_list
+        done = done_list[0] if isinstance(done_list, list) else done_list
         
         state["current_obs"] = obs
         state["total_reward"] += reward
         state["done"] = done
+        state["admissible_commands"] = info.get('admissible_commands', [[]])[0] if info else []
         
         return obs, reward, done
     
