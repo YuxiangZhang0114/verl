@@ -109,6 +109,11 @@ def default_compute_score(
         from . import search_r1_like_qa_em
 
         res = search_r1_like_qa_em.compute_score_asearcher_with_thinking(solution_str, ground_truth)
+    elif data_source.startswith("alfworld"):
+        # ALFWorld embodied AI tasks (alfworld_train, alfworld_eval_id, alfworld_eval_ood)
+        from . import alfworld_reward
+
+        res = alfworld_reward.compute_score(solution_str, ground_truth, extra_info)
     else:
         raise NotImplementedError(f"Reward function is not implemented for {data_source=}")
 
