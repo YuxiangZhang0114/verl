@@ -90,9 +90,11 @@ class ALFWorldEnvManager:
         if self._alfworld_available is None:
             try:
                 from alfworld.agents.environment import get_environment
-                import alfworld.agents.modules.generic as generic
-                # Try to load config to verify data is downloaded
-                config = generic.load_config()
+                # Check if ALFWORLD_DATA exists
+                alfworld_data = os.environ.get('ALFWORLD_DATA', os.path.expanduser('~/.cache/alfworld'))
+                data_path = os.path.join(alfworld_data, 'json_2.1.1', 'train')
+                if not os.path.exists(data_path):
+                    raise FileNotFoundError(f"ALFWorld data not found at {data_path}")
                 self._alfworld_available = True
                 logger.info("ALFWorld environment is available")
             except ImportError as e:
