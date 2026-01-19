@@ -36,7 +36,7 @@ python3 -m verl.trainer.main_ppo \
     data.val_batch_size=400 \
     trainer.default_local_dir=$SAVE_PATH \
     data.max_prompt_length=2048 \
-    data.max_response_length=6144 \
+    data.max_response_length=8192 \
     actor_rollout_ref.model.path=/models/qwen3_4b_instruct_2507 \
     actor_rollout_ref.model.use_remove_padding=True \
     actor_rollout_ref.model.lora_rank=16 \
@@ -47,7 +47,7 @@ python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.actor.ppo_mini_batch_size=128 \
     actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=1 \
     actor_rollout_ref.actor.use_dynamic_bsz=True \
-    actor_rollout_ref.actor.ppo_max_token_len_per_gpu=8192 \
+    actor_rollout_ref.actor.ppo_max_token_len_per_gpu=16384 \
     actor_rollout_ref.actor.use_kl_loss=True \
     actor_rollout_ref.actor.kl_loss_coef=0.001 \
     actor_rollout_ref.actor.kl_loss_type=low_var_kl \
@@ -60,7 +60,7 @@ python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.actor.fsdp_config.optimizer_offload=True \
     actor_rollout_ref.rollout.name=vllm \
     actor_rollout_ref.rollout.tensor_model_parallel_size=1 \
-    actor_rollout_ref.rollout.gpu_memory_utilization=0.4 \
+    actor_rollout_ref.rollout.gpu_memory_utilization=0.6 \
     actor_rollout_ref.rollout.max_model_len=16384 \
     actor_rollout_ref.rollout.multi_stage_wake_up=True \
     actor_rollout_ref.rollout.n=5 \
@@ -86,5 +86,5 @@ python3 -m verl.trainer.main_ppo \
     trainer.log_val_generations=10 \
     trainer.logger='["console","wandb"]' \
     trainer.project_name='alfworld-grpo' \
-    trainer.n_gpus_per_node=1 \
+    trainer.n_gpus_per_node=8 \
     trainer.nnodes=1 $@
