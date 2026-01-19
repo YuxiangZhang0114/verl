@@ -474,6 +474,10 @@ class ALFWorldEnvManager:
         state["won"] = won  # Track if task was completed successfully
         state["admissible_commands"] = admissible
         
+        # DEBUG LOG
+        if done or won:
+            print(f"[ENV_MANAGER DEBUG] request_id={request_id}, action={action}, done={done}, won={won}")
+        
         return obs, 0.0, done  # No process reward, only result reward at the end
     
     def _simulated_step(self, request_id: str, action: str) -> tuple[str, float, bool]:

@@ -201,6 +201,9 @@ class ALFWorldActionTool(BaseTool):
         env_state_info = self.env_manager.get_env_state(agent_data.request_id)
         won = env_state_info.get("won", False)
         
+        # Also save won to agent_data.extra_fields for tool_agent_loop to access
+        env_state["won"] = won
+        
         # Result reward: 1.0 if task completed successfully, 0.0 otherwise
         if done and won:
             final_reward = 1.0
@@ -211,6 +214,10 @@ class ALFWorldActionTool(BaseTool):
         else:
             final_reward = 0.0
             response_text = obs
+        
+        # DEBUG LOG
+        if done:
+            print(f"[ALFWORLD DEBUG] request_id={agent_data.request_id}, action={action_str}, done={done}, won={won}, final_reward={final_reward}")
         
         metrics = {
             "action": action_str,

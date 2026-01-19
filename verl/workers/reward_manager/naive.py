@@ -90,6 +90,11 @@ class NaiveRewardManager(AbstractRewardManager):
             if "tool_rewards" in data_item.non_tensor_batch:
                 extra_info["tool_rewards"] = data_item.non_tensor_batch["tool_rewards"]
 
+            # DEBUG LOG - only print first 5 samples per batch
+            if i < 5:
+                print(f"[REWARD_MANAGER DEBUG] i={i}, success={extra_info.get('success')}, total_reward={extra_info.get('total_reward')}, "
+                      f"rollout_scores={rollout_reward_scores}, data_source={data_source}")
+
             score = self.compute_score(
                 data_source=data_source,
                 solution_str=response_str,

@@ -212,15 +212,25 @@ class ToolAgentLoop(AgentLoopBase):
         reward_scores = {"tool_reward": total_tool_reward}
         
         # Check if task was successful (for environment-based rewards like ALFWorld)
-        # This provides a success flag that the reward function can use
-        success = total_tool_reward > 0
+        # First check if environment set "won" flag in extra_fields (e.g., ALFWorld)
+        env_state = agent_data.extra_fields.get("alfworld_env", {})
+        env_won = env_state.get("won", False) if isinstance(env_state, dict) else False
+        env_done = env_state.get("done", False) if isinstance(env_state, dict) else False
+        
+        # Also check total_tool_reward for backwards compatibility
+        success = env_won or (total_tool_reward > 0)
+        
+        # DEBUG LOG - print for first few samples
+        if env_done or success or total_tool_reward > 0:
+            print(f"[AGENT_LOOP DEBUG] request_id={agent_data.request_id}, env_won={env_won}, env_done={env_done}, "
+                  f"total_tool_reward={total_tool_reward}, tool_rewards={agent_data.tool_rewards[-3:] if agent_data.tool_rewards else []}, success={success}")
         
         output.extra_fields.update({
             "turn_scores": agent_data.turn_scores,
             "tool_rewards": agent_data.tool_rewards,
             "reward_scores": reward_scores,
             "success": success,
-            "total_reward": total_tool_reward
+            "total_reward": 1.0 if success else 0.0,  # Binary result reward
         })
         return output
 
