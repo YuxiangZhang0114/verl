@@ -225,19 +225,17 @@ class ALFWorldEnvManager:
             # Force TextWorld environment type
             self._alfworld_config['env']['type'] = 'AlfredTWEnv'
         
-        # Create shared environment instance (once per worker)
-        if not hasattr(self, '_shared_env') or self._shared_env is None:
-            try:
-                logger.info("Creating shared ALFWorld environment instance...")
-                EnvClass = get_environment(self._alfworld_config['env']['type'])
-                self._shared_env = EnvClass(self._alfworld_config, train_eval='train')
-                self._shared_env = self._shared_env.init_env(batch_size=1)
-                logger.info("Shared ALFWorld environment created successfully")
-            except Exception as e:
-                raise RuntimeError(
-                    f"Failed to create ALFWorld environment: {e}. "
-                    "Make sure ALFWorld is properly installed and configured."
-                )
+        # Create a NEW environment instance for EACH request to avoid state pollution
+        # This is slower but ensures correctness in multi-request scenarios
+        try:
+            EnvClass = get_environment(self._alfworld_config['env']['type'])
+            request_env = EnvClass(self._alfworld_config, train_eval='train')
+            request_env = request_env.init_env(batch_size=1)
+        except Exception as e:
+            raise RuntimeError(
+                f"Failed to create ALFWorld environment: {e}. "
+                "Make sure ALFWorld is properly installed and configured."
+            )
         
         # Get task info from registry
         task_info = self.task_registry.get(task_id, {})
@@ -249,28 +247,28 @@ class ALFWorldEnvManager:
         
         try:
             # Try to load specific game if game_file_path is provided
-            if game_file_path and hasattr(self._shared_env, 'game_files'):
-                original_game_files = self._shared_env.game_files.copy()
+            if game_file_path and hasattr(request_env, 'game_files'):
+                original_game_files = request_env.game_files.copy()
                 
                 # Find matching game files
                 matching_games = [g for g in original_game_files if game_file_path in g]
                 
                 if matching_games:
                     # Temporarily replace game_files with only the matching game
-                    self._shared_env.game_files = matching_games
+                    request_env.game_files = matching_games
                     logger.debug(f"Loading specific game: {matching_games[0]}")
-                    reset_result = self._shared_env.reset()
+                    reset_result = request_env.reset()
                     # Restore original game_files
-                    self._shared_env.game_files = original_game_files
+                    request_env.game_files = original_game_files
                 else:
                     logger.warning(
                         f"Game file '{game_file_path}' not found in available games. "
                         f"Using random game instead."
                     )
-                    reset_result = self._shared_env.reset()
+                    reset_result = request_env.reset()
             else:
                 # No specific game requested, use random
-                reset_result = self._shared_env.reset()
+                reset_result = request_env.reset()
             
             # Handle reset result - could be (obs_list, info) or just obs_list
             if isinstance(reset_result, tuple) and len(reset_result) == 2:
@@ -305,8 +303,8 @@ class ALFWorldEnvManager:
             else:
                 admissible_commands = list(admissible_commands)
         
-        # Store reference to shared environment and state
-        self.active_envs[request_id] = self._shared_env
+        # Store reference to THIS REQUEST'S environment (not shared!)
+        self.active_envs[request_id] = request_env
         self.env_states[request_id] = {
             "task_id": task_id,
             "task_type": task_type,
@@ -314,7 +312,7 @@ class ALFWorldEnvManager:
             "current_obs": obs,
             "goal": goal,
             "done": False,
-            "total_reward": 0.0,
+            "won": False,  # Track if task was completed successfully
             "steps": 0,
             "action_history": [],
             "admissible_commands": admissible_commands,
@@ -437,9 +435,8 @@ class ALFWorldEnvManager:
         if state.get("simulated", False):
             return self._simulated_step(request_id, action)
         else:
-            # Use lock to prevent concurrent access to shared environment
-            async with self._env_lock:
-                return await self._real_step(request_id, action)
+            # Each request has its own environment, no lock needed
+            return await self._real_step(request_id, action)
     
     async def _real_step(self, request_id: str, action: str) -> tuple[str, float, bool]:
         """Execute action in real ALFWorld environment.
@@ -607,15 +604,15 @@ class ALFWorldEnvManager:
         Args:
             request_id: The request identifier.
         """
-        async with self._env_lock:
-            if request_id in self.active_envs:
-                env = self.active_envs[request_id]
-                if env != "simulated" and hasattr(env, "close"):
-                    try:
-                        env.close()
-                    except Exception as e:
-                        logger.warning(f"Error closing environment: {e}")
-                del self.active_envs[request_id]
+        # Each request has its own environment, no lock needed
+        if request_id in self.active_envs:
+            env = self.active_envs[request_id]
+            if env != "simulated" and hasattr(env, "close"):
+                try:
+                    env.close()
+                except Exception as e:
+                    logger.warning(f"Error closing environment: {e}")
+            del self.active_envs[request_id]
             
             if request_id in self.env_states:
                 state = self.env_states[request_id]
